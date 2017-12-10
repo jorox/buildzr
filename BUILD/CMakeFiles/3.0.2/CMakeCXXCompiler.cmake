@@ -1,7 +1,7 @@
-set(CMAKE_CXX_COMPILER "/opt/intel/bin/icpc")
+set(CMAKE_CXX_COMPILER "/usr/bin/c++")
 set(CMAKE_CXX_COMPILER_ARG1 "")
-set(CMAKE_CXX_COMPILER_ID "Intel")
-set(CMAKE_CXX_COMPILER_VERSION "17.0.1.20161005")
+set(CMAKE_CXX_COMPILER_ID "GNU")
+set(CMAKE_CXX_COMPILER_VERSION "4.9.2")
 set(CMAKE_CXX_PLATFORM_ID "Linux")
 set(CMAKE_CXX_SIMULATE_ID "")
 set(CMAKE_CXX_SIMULATE_VERSION "")
@@ -9,7 +9,7 @@ set(CMAKE_CXX_SIMULATE_VERSION "")
 set(CMAKE_AR "/usr/bin/ar")
 set(CMAKE_RANLIB "/usr/bin/ranlib")
 set(CMAKE_LINKER "/usr/bin/ld")
-set(CMAKE_COMPILER_IS_GNUCXX )
+set(CMAKE_COMPILER_IS_GNUCXX 1)
 set(CMAKE_CXX_COMPILER_LOADED 1)
 set(CMAKE_CXX_COMPILER_WORKS TRUE)
 set(CMAKE_CXX_ABI_COMPILED TRUE)
@@ -51,8 +51,8 @@ endif()
 
 
 
-set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "imf;svml;irng;stdc++;m;ipgo;decimal;cilkrts;stdc++;irc;svml;c;irc_s;dl;c")
-set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "/opt/intel/compilers_and_libraries_2017.1.132/linux/tbb/lib/intel64_lin/gcc4.7;/opt/intel/compilers_and_libraries_2017.1.132/linux/compiler/lib/intel64_lin;/opt/intel/compilers_and_libraries_2017.1.132/linux/mkl/lib/intel64_lin;/usr/lib/gcc/x86_64-linux-gnu/4.9;/usr/lib/x86_64-linux-gnu;/usr/lib;/lib/x86_64-linux-gnu;/lib64;/lib;/usr/lib/i386-linux-gnu")
+set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "stdc++;m;c")
+set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "/usr/lib/gcc/x86_64-linux-gnu/4.9;/usr/lib/x86_64-linux-gnu;/usr/lib;/lib/x86_64-linux-gnu;/lib")
 set(CMAKE_CXX_IMPLICIT_LINK_FRAMEWORK_DIRECTORIES "")
 
 
