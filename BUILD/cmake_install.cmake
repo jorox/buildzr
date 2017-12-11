@@ -1,4 +1,4 @@
-# Install script for directory: /home/wassim/work/buildzr
+# Install script for directory: /home/wk234832/work/C++/buildZr
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -12,7 +12,7 @@ if(NOT DEFINED CMAKE_INSTALL_CONFIG_NAME)
     string(REGEX REPLACE "^[^A-Za-z0-9_]+" ""
            CMAKE_INSTALL_CONFIG_NAME "${BUILD_TYPE}")
   else()
-    set(CMAKE_INSTALL_CONFIG_NAME "debug")
+    set(CMAKE_INSTALL_CONFIG_NAME "")
   endif()
   message(STATUS "Install configuration: \"${CMAKE_INSTALL_CONFIG_NAME}\"")
 endif()
@@ -38,7 +38,7 @@ else()
   set(CMAKE_INSTALL_MANIFEST "install_manifest.txt")
 endif()
 
-file(WRITE "/home/wassim/work/buildzr/BUILD/${CMAKE_INSTALL_MANIFEST}" "")
+file(WRITE "/home/wk234832/work/C++/buildZr/BUILD/${CMAKE_INSTALL_MANIFEST}" "")
 foreach(file ${CMAKE_INSTALL_MANIFEST_FILES})
-  file(APPEND "/home/wassim/work/buildzr/BUILD/${CMAKE_INSTALL_MANIFEST}" "${file}\n")
+  file(APPEND "/home/wk234832/work/C++/buildZr/BUILD/${CMAKE_INSTALL_MANIFEST}" "${file}\n")
 endforeach()

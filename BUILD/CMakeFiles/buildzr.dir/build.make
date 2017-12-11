@@ -35,10 +35,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/wassim/work/buildzr
+CMAKE_SOURCE_DIR = /home/wk234832/work/C++/buildZr
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/wassim/work/buildzr/BUILD
+CMAKE_BINARY_DIR = /home/wk234832/work/C++/buildZr/BUILD
 
 # Include any dependencies generated for this target.
 include CMakeFiles/buildzr.dir/depend.make
@@ -51,17 +51,17 @@ include CMakeFiles/buildzr.dir/flags.make
 
 CMakeFiles/buildzr.dir/src/main.cpp.o: CMakeFiles/buildzr.dir/flags.make
 CMakeFiles/buildzr.dir/src/main.cpp.o: ../src/main.cpp
-	$(CMAKE_COMMAND) -E cmake_progress_report /home/wassim/work/buildzr/BUILD/CMakeFiles $(CMAKE_PROGRESS_1)
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/wk234832/work/C++/buildZr/BUILD/CMakeFiles $(CMAKE_PROGRESS_1)
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Building CXX object CMakeFiles/buildzr.dir/src/main.cpp.o"
-	/usr/bin/c++   $(CXX_DEFINES) $(CXX_FLAGS) -o CMakeFiles/buildzr.dir/src/main.cpp.o -c /home/wassim/work/buildzr/src/main.cpp
+	/opt/intel/bin/icpc   $(CXX_DEFINES) $(CXX_FLAGS) -o CMakeFiles/buildzr.dir/src/main.cpp.o -c /home/wk234832/work/C++/buildZr/src/main.cpp
 
 CMakeFiles/buildzr.dir/src/main.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/buildzr.dir/src/main.cpp.i"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -E /home/wassim/work/buildzr/src/main.cpp > CMakeFiles/buildzr.dir/src/main.cpp.i
+	/opt/intel/bin/icpc  $(CXX_DEFINES) $(CXX_FLAGS) -E /home/wk234832/work/C++/buildZr/src/main.cpp > CMakeFiles/buildzr.dir/src/main.cpp.i
 
 CMakeFiles/buildzr.dir/src/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/buildzr.dir/src/main.cpp.s"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -S /home/wassim/work/buildzr/src/main.cpp -o CMakeFiles/buildzr.dir/src/main.cpp.s
+	/opt/intel/bin/icpc  $(CXX_DEFINES) $(CXX_FLAGS) -S /home/wk234832/work/C++/buildZr/src/main.cpp -o CMakeFiles/buildzr.dir/src/main.cpp.s
 
 CMakeFiles/buildzr.dir/src/main.cpp.o.requires:
 .PHONY : CMakeFiles/buildzr.dir/src/main.cpp.o.requires
@@ -97,6 +97,6 @@ CMakeFiles/buildzr.dir/clean:
 .PHONY : CMakeFiles/buildzr.dir/clean
 
 CMakeFiles/buildzr.dir/depend:
-	cd /home/wassim/work/buildzr/BUILD && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/wassim/work/buildzr /home/wassim/work/buildzr /home/wassim/work/buildzr/BUILD /home/wassim/work/buildzr/BUILD /home/wassim/work/buildzr/BUILD/CMakeFiles/buildzr.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/wk234832/work/C++/buildZr/BUILD && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/wk234832/work/C++/buildZr /home/wk234832/work/C++/buildZr /home/wk234832/work/C++/buildZr/BUILD /home/wk234832/work/C++/buildZr/BUILD /home/wk234832/work/C++/buildZr/BUILD/CMakeFiles/buildzr.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/buildzr.dir/depend
 

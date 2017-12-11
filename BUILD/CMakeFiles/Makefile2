@@ -47,10 +47,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/wassim/work/buildzr
+CMAKE_SOURCE_DIR = /home/wk234832/work/C++/buildZr
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/wassim/work/buildzr/BUILD
+CMAKE_BINARY_DIR = /home/wk234832/work/C++/buildZr/BUILD
 
 #=============================================================================
 # Target rules for target CMakeFiles/buildzr.dir
@@ -59,7 +59,7 @@ CMAKE_BINARY_DIR = /home/wassim/work/buildzr/BUILD
 CMakeFiles/buildzr.dir/all:
 	$(MAKE) -f CMakeFiles/buildzr.dir/build.make CMakeFiles/buildzr.dir/depend
 	$(MAKE) -f CMakeFiles/buildzr.dir/build.make CMakeFiles/buildzr.dir/build
-	$(CMAKE_COMMAND) -E cmake_progress_report /home/wassim/work/buildzr/BUILD/CMakeFiles  1
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/wk234832/work/C++/buildZr/BUILD/CMakeFiles  1
 	@echo "Built target buildzr"
 .PHONY : CMakeFiles/buildzr.dir/all
 
@@ -69,9 +69,9 @@ all: CMakeFiles/buildzr.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/buildzr.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/wassim/work/buildzr/BUILD/CMakeFiles 1
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/wk234832/work/C++/buildZr/BUILD/CMakeFiles 1
 	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/buildzr.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/wassim/work/buildzr/BUILD/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/wk234832/work/C++/buildZr/BUILD/CMakeFiles 0
 .PHONY : CMakeFiles/buildzr.dir/rule
 
 # Convenience name for target.

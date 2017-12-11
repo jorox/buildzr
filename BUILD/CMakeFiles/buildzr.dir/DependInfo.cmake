@@ -4,9 +4,9 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/wassim/work/buildzr/src/main.cpp" "/home/wassim/work/buildzr/BUILD/CMakeFiles/buildzr.dir/src/main.cpp.o"
+  "/home/wk234832/work/C++/buildZr/src/main.cpp" "/home/wk234832/work/C++/buildZr/BUILD/CMakeFiles/buildzr.dir/src/main.cpp.o"
   )
-set(CMAKE_CXX_COMPILER_ID "GNU")
+set(CMAKE_CXX_COMPILER_ID "Intel")
 
 # Targets to which this target links.
 set(CMAKE_TARGET_LINKED_INFO_FILES

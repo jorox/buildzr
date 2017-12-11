@@ -64,10 +64,23 @@ void map_id_uc(int& idAtom, Eigen::Vector4i& uccAtom, Eigen::Matrix<int, 3,2>& b
 }
 
 /**
+   return the unit-coordinates of the atom
+ **/
+void get_atom_uc(Atom& aatom, UnitCell& unit, Eigen::Vector3f& atomUc){
+  atomUc << aatom.ucc(1), aatom.ucc(2), aatom.ucc(3);
+  atomUc += unit.motif[aatom.ucc(0)];
+}
+
+/**
    Use an atom's unit-cell coordinates to calculate its coordinates in real space
    The method accepts non-orthogonal unit-cells. However, it has not been tested
  **/
 void map_uc_real(Atom& aatom, UnitCell& unit){
+  Eigen::Vector3f tmpUc;
+  get_atom_uc( aatom, unit, tmpUc);
+  aatom.coords = tmpUc(0) * unit.X + tmpUc(1) * unit.Y + tmpUc(2) * unit.Z;
+
+  /**
   aatom.coords << 0., 0., 0.;
   // basis coordinates
   aatom.coords += unit.motif[aatom.ucc(0)](0) * unit.X;
@@ -77,6 +90,7 @@ void map_uc_real(Atom& aatom, UnitCell& unit){
   aatom.coords += aatom.ucc(1) * unit.X;
   aatom.coords += aatom.ucc(2) * unit.Y;
   aatom.coords += aatom.ucc(3) * unit.Z;
+  **/
 }
 
 
@@ -147,26 +161,50 @@ int create_edge_xz(std::vector<Atom>& atomList, UnitCell& uc, Eigen::Matrix<floa
         ucadelete << ib, ix, iy, iz;
         //printf ( "trying %i %i %i %i", ib, ix, iy, iz);
         map_id_uc( iadelete, ucadelete, boxUcLims, uc.motif.size());
-        //printf ( " -- deleting %i %i %i %i\n", atomList[iadelete].ucc(0), atomList[iadelete].ucc(1), atomList[iadelete].ucc(2), atomList[iadelete].ucc(3) );
+        //printf ( " -- deleting %i %i %i %i\n",
+        // atomList[iadelete].ucc(0),
+        // atomList[iadelete].ucc(1),
+        // atomList[iadelete].ucc(2),
+        // atomList[iadelete].ucc(3) );
         atomList[iadelete]._id = -1;
       }
     }
   }
 
   Eigen::Vector4i ucatom;
-  // strain the top and bottom parts
+  Eigen::Vector3f tmpUc;
+  float e_bot = -1. / 2. / Nx * uc.X.norm(); //deformation bottom part
+  float e_top = 1. / 2. / (Nx - 1) * uc.X.norm(); // deformation top part
+
   for (int ia = 0; ia < atomList.size(); ++ia){
+    get_atom_uc(atomList[ia], uc, tmpUc); //get the unit-cell coordinates
+    tmpUc(0) -= boxUcLims(0,0); //set the left hand side of the box as the fixed point
+
     if (atomList[ia].ucc(3) < midz) {
-      atomsList[ia].coords(0)
+      atomList[ia].coords(0) += tmpUc(0) * e_bot;
     }
+    else{
+      atomList[ia].coords(0) += tmpUc(0) * e_top;
+    }
+  }
 
-
-
+  boxLims(0,1) -= 1./2. * uc.X.norm();
 
   return nAtomsDelete;
 
 }
 
+/**
+   Create a scew dislocation along xz
+ **/
+
+void create_screw_xz(std::vector<Atom>& atomList, UnitCell& uc, Eigen::Matrix<float, 3, 3>& boxLims, Eigen::Matrix<int, 3,2>& boxUcLims){
+
+  Eigen::Vector3f centerPoint;
+  centerPoint << boxLims(0,0) + boxLims(0,1), boxLims(1,0) + boxLims(1,1), boxLims(2,0) + boxLims(2,1);
+  centerPoint /= 2.0;
+
+}
 
 int main(int argc, char** argv){
 
@@ -194,7 +232,7 @@ int main(int argc, char** argv){
   zrstd.Y << 0.0, _CLAT, 0.0; // [0001]
   zrstd.Z << 0.0, 0.0, sqrt(3.0) * _ALAT; // [1-100]
 
-  zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.0, 0.0));   //A-plane
+  zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.0, 0.995));   //A-plane
   zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.5, 1./3.)); //B-plane
   zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.0, 0.5));   //A-plane
   zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.5, 0.5+1./3.)); //B-plane
