@@ -187,6 +187,28 @@ int create_edge_xz(std::vector<Atom>& atomList, UnitCell& uc, Eigen::Matrix<floa
 }
 
 /**
+   wrap atoms outside the box
+**/
+void wrap_box(std::vector<Atoms>& atomList, Eigen::Matrix<float,3,3>& boxLims){
+  Eigen::Vector3f rAtom;
+  // calculate the box vectors
+  Eigen::Vector3f boxX, boxY, boxZ;
+  Eigen::Vector3f origin;
+
+  boxX << boxLims(0,1) - boxLims(0,0), 0.0, 0.0;
+  boxY << boxLims(0,2), boxLims(1,1) - boxLims(1,0), 0.0;
+  boxZ << boxLims(1,2), boxLims(2,2), boxLims(2,1) - boxLims(2,0);
+  origin << boxLims(0,0), boxLims(1,0), boxLims(2,0);
+
+  for (int i = 0; i < atomList.size(); ++i){
+    // calculate the distance of the atom from the bottom-left corner i.e. origin
+    rAtom = atomList[i].coords - origin;
+    if ( rAtom.dot(boxX) < boxLims( )
+  }
+}
+
+
+/**
    Create a scew dislocation along xz
  **/
 
