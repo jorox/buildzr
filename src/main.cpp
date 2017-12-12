@@ -180,7 +180,7 @@ int create_edge_xz(std::vector<Atom>& atomList, UnitCell& uc, Eigen::Matrix<floa
   }
 
   // squeeze box to accomodate strain
-  boxLims(0,1) -= 1./2. * uc.X.norm();
+  boxLims(0,1) -= 0.5 * uc.X.norm();
 
   return nAtomsDelete;
 
@@ -189,8 +189,8 @@ int create_edge_xz(std::vector<Atom>& atomList, UnitCell& uc, Eigen::Matrix<floa
 /**
    wrap atoms outside the box
 **/
-void wrap_box(std::vector<Atoms>& atomList, Eigen::Matrix<float,3,3>& boxLims){
-  Eigen::Vector3f rAtom;
+void wrap_box(std::vector<Atom>& atomList, Eigen::Matrix<float,3,3>& boxLims){
+
   // calculate the box vectors
   Eigen::Vector3f boxX, boxY, boxZ;
   Eigen::Vector3f origin;
@@ -198,15 +198,25 @@ void wrap_box(std::vector<Atoms>& atomList, Eigen::Matrix<float,3,3>& boxLims){
   boxX << boxLims(0,1) - boxLims(0,0), 0.0, 0.0;
   boxY << boxLims(0,2), boxLims(1,1) - boxLims(1,0), 0.0;
   boxZ << boxLims(1,2), boxLims(2,2), boxLims(2,1) - boxLims(2,0);
+
+  Eigen::Matrix3f T; //transformation matrix
+  T << boxX(0), boxY(0), boxZ(0), boxX(1), boxY(1), boxZ(1), boxX(2), boxY(2), boxZ(2);
+  Eigen::Matrix3f invT;
+  invT = T.inverse();
+
   origin << boxLims(0,0), boxLims(1,0), boxLims(2,0);
 
+  Eigen::Vector3f rAtom;
   for (int i = 0; i < atomList.size(); ++i){
-    // calculate the distance of the atom from the bottom-left corner i.e. origin
-    rAtom = atomList[i].coords - origin;
-    if ( rAtom.dot(boxX) < boxLims( )
+    rAtom = atomList[i].coords - origin; // calculate distance from origin (llc)
+    rAtom = T * rAtom; // 0 <= rAtom(i) < 1 // transform to box space
+    for (int j = 0; j < 3; ++j){
+      rAtom(j) -= floor(rAtom(j));  // return to central image
+    }
+    rAtom = invT * rAtom; // return to standard space and shift
+    rAtom = rAtom + origin;
   }
 }
-
 
 /**
    Create a scew dislocation along xz
@@ -234,6 +244,9 @@ void create_screw_xz(std::vector<Atom>& atomList, UnitCell& uc, Eigen::Matrix<fl
   boxLims(0,2) = burgers / 2.0;
   double Ly = boxLims(1,1) - boxLims(1,0);
   boxLims(1,1) = sqrt( Ly * Ly - burgers * burgers / 4.0 ) + boxLims(1,0);
+
+  // wrap atoms
+  wrap_box( atomList, boxLims);
 
 }
 
@@ -284,6 +297,7 @@ int main(int argc, char** argv){
   // calculate the blc and trc
   box_lim.block<3,1>(0,0) = Nx(0,0) * zrstd.X + Nx(1,0) * zrstd.Y + Nx(2,0) * zrstd.Z; //lower-left corner
   box_lim.block<3,1>(0,1) = Nx(0,1) * zrstd.X + Nx(1,1) * zrstd.Y + Nx(2,1) * zrstd.Z; //upper-right corner
+  box_lim.block<3,1>(0,2) << 0., 0., 0.; //start with orthogoanl box
 
   // calculate the number of atoms
   Natoms = (Nx(0,1) - Nx(0,0)) * (Nx(1,1) - Nx(1,0)) * (Nx(2,1) - Nx(2,0)) * zrstd.motif.size();
@@ -310,7 +324,7 @@ int main(int argc, char** argv){
 
   printf( "... done building crystal\n");
   if (argc > 7){
-    if (argv[6] == "e"){
+    if (strcmp(argv[7],"e") == 0){
       int tmp = create_edge_xz ( atoms, zrstd, box_lim, Nx );
       printf ( "+++ created edge dislocation with b=x, n=z, %i atoms deleted \n", tmp);
     }
