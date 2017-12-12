@@ -1,1 +1,1 @@
-/opt/intel/bin/icpc       CMakeFiles/buildzr.dir/src/main.cpp.o  -o buildzr -rdynamic 
+/usr/bin/c++       CMakeFiles/buildzr.dir/src/main.cpp.o  -o buildzr -rdynamic 
