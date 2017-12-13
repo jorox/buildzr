@@ -269,7 +269,8 @@ int main(int argc, char** argv){
     Y = [0001]
     Z = [-1100]
     We have 4 basis atoms in this unit cell i.e. it is not the primitive; however, it is orthogonal
-   */
+  */
+  /*
   struct UnitCell zrstd;
 
   zrstd.X << _ALAT, 0.0, 0.0; // 1/3[11-20]
@@ -280,6 +281,25 @@ int main(int argc, char** argv){
   zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.5, 1./3.)); //B-plane
   zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.0, 0.5));   //A-plane
   zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.5, 0.5+1./3.)); //B-plane
+  */
+
+  /*
+    Zirconium unit cell
+    X = 1/3[11-20]
+    Y = [0001]
+    Z = [-1100]
+    We have 4 basis atoms in this unit cell i.e. it is not the primitive; however, it is orthogonal
+  */
+    struct UnitCell zrstd;
+
+    zrstd.X << _ALAT, 0.0, 0.0; // 1/3[11-20]
+    zrstd.Y << 0.0, sqrt(3.0) * _ALAT, 0.0; // [1-100]
+    zrstd.Z << 0.0, 0.0, _CLAT; // [0001]
+
+    zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.995, 0.0));   //A-plane
+    zrstd.motif.push_back(Eigen::Vector3f (0.0, 1./3., 0.5)); //B-plane
+    zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.5, 0.0));   //A-plane
+    zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.5+1./3., 0.5)); //B-plane
 
   /*
     The box is defined by the repeat vectors Nx[:,i]
