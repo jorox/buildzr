@@ -1,0 +1,22 @@
+#include "enki.h"
+#include <iostream>
+#include <stdio.h>
+
+int enki::ratio_of_atoms( const UnitCell& old, const UnitCell& shiny){
+  return floor( shiny.volume() / old.volume() );
+}
+
+void enki::transform (const UnitCell& old, Eigen::Matrix3f& miller, UnitCell& shiny){
+  // calculate the miller vectors in the standard basis
+  shiny.ucv << old.ucv * miller;
+
+  // make sure volume >= 1
+  int roa = ratio_of_atoms( old, shiny);
+  if (roa < 1){
+    std::cout << "Error enki::transform() Miller indices chosen do not represent a valid transformation" << std::endl;
+  }
+  else{
+    printf ( "%i atoms in new basis\n", roa * old.number_of_atoms());
+  }
+
+}
