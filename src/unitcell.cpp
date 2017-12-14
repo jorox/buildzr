@@ -7,6 +7,11 @@ UnitCell::UnitCell(Eigen::Matrix3f& unitCellVectors, Eigen::Matrix<float, 3, Eig
   basis = motifAtoms;
 }
 
+UnitCell::UnitCell (){
+  ucv = Eigen::Matrix<float,3,3>::Identity();
+  basis.resize(3,0);
+}
+
 double UnitCell::volume() const{
   return ucv.determinant();
 }
@@ -22,8 +27,8 @@ int UnitCell::number_of_atoms() const{
 }
 
 void UnitCell::print_me() const {
-  std::cout << "a=" << ucv << std::endl;
-  std::cout << "motif=" << basis << std::endl;
+  std::cout << "basis <column vectors> (A) =" << std::endl << ucv << std::endl;
+  std::cout << "motif <column vectors> (frac) =" << std::endl << basis << std::endl;
 }
 
 void UnitCell::generate(const Eigen::Matrix<float,3,2> &repeatVecs, std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f> > &atoms) const{
