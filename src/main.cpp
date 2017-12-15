@@ -260,8 +260,7 @@ int main(int argc, char** argv){
   /*
     lattice constants
    */
-  double _ALAT = 3.23; // Angstrom
-  double _CLAT = 5.165;
+  double _ALAT = 2.855324; // Angstrom
 
   /*
     Zirconium unit cell
@@ -271,35 +270,41 @@ int main(int argc, char** argv){
     We have 4 basis atoms in this unit cell i.e. it is not the primitive; however, it is orthogonal
   */
   /*
-  struct UnitCell zrstd;
+  struct UnitCell bcc111;
 
-  zrstd.X << _ALAT, 0.0, 0.0; // 1/3[11-20]
-  zrstd.Y << 0.0, _CLAT, 0.0; // [0001]
-  zrstd.Z << 0.0, 0.0, sqrt(3.0) * _ALAT; // [1-100]
+  bcc111.X << _ALAT, 0.0, 0.0; // 1/3[11-20]
+  bcc111.Y << 0.0, _CLAT, 0.0; // [0001]
+  bcc111.Z << 0.0, 0.0, sqrt(3.0) * _ALAT; // [1-100]
 
-  zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.0, 0.995));   //A-plane
-  zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.5, 1./3.)); //B-plane
-  zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.0, 0.5));   //A-plane
-  zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.5, 0.5+1./3.)); //B-plane
+  bcc111.motif.push_back(Eigen::Vector3f (0.0, 0.0, 0.995));   //A-plane
+  bcc111.motif.push_back(Eigen::Vector3f (0.0, 0.5, 1./3.)); //B-plane
+  bcc111.motif.push_back(Eigen::Vector3f (0.5, 0.0, 0.5));   //A-plane
+  bcc111.motif.push_back(Eigen::Vector3f (0.5, 0.5, 0.5+1./3.)); //B-plane
   */
 
   /*
-    Zirconium unit cell
-    X = 1/3[11-20]
-    Y = [0001]
-    Z = [-1100]
-    We have 4 basis atoms in this unit cell i.e. it is not the primitive; however, it is orthogonal
+    BCC dislocation unit cell
+    X = 0.5[111]
+    Y = [-1-12]
+    Z = [1-10]
+    We have 6 basis atoms in this unit cell i.e. it is not the primitive; however, it is orthogonal
   */
-    struct UnitCell zrstd;
+    struct UnitCell bcc111;
 
-    zrstd.X << _ALAT, 0.0, 0.0; // 1/3[11-20]
-    zrstd.Y << 0.0, sqrt(3.0) * _ALAT, 0.0; // [1-100]
-    zrstd.Z << 0.0, 0.0, _CLAT; // [0001]
+    bcc111.X << sqrt(3.0)/2.0, 0., 0.; // 1/2[111]
+    bcc111.Y << 0.0, sqrt(6.0), 0.; // [-1-12]
+    bcc111.Z << 0.0, 0.0, sqrt(2.0); // [1-10]
 
-    zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.995, 0.0));   //A-plane
-    zrstd.motif.push_back(Eigen::Vector3f (0.0, 1./3., 0.5)); //B-plane
-    zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.5, 0.0));   //A-plane
-    zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.5+1./3., 0.5)); //B-plane
+    bcc111.X *= _ALAT;
+    bcc111.Y *= _ALAT;
+    bcc111.Z *= _ALAT;
+
+    bcc111.motif.push_back(Eigen::Vector3f (0.6666667, 0.333333, 0.0));
+    bcc111.motif.push_back(Eigen::Vector3f (0.3333333, 0.166667, 0.5));
+    bcc111.motif.push_back(Eigen::Vector3f (0., 0., 0.));
+    bcc111.motif.push_back(Eigen::Vector3f (0.666667, 0.8333333, 0.5));
+    bcc111.motif.push_back(Eigen::Vector3f (0.333333, 0.6666667, 0.0));
+    bcc111.motif.push_back(Eigen::Vector3f (0.0, 0.5, 0.5));
 
   /*
     The box is defined by the repeat vectors Nx[:,i]
@@ -315,19 +320,19 @@ int main(int argc, char** argv){
     Nx((i - 1)/2, (i-1)%2) = atoi(argv[i]);
   }
   // calculate the blc and trc
-  box_lim.block<3,1>(0,0) = Nx(0,0) * zrstd.X + Nx(1,0) * zrstd.Y + Nx(2,0) * zrstd.Z; //lower-left corner
-  box_lim.block<3,1>(0,1) = Nx(0,1) * zrstd.X + Nx(1,1) * zrstd.Y + Nx(2,1) * zrstd.Z; //upper-right corner
+  box_lim.block<3,1>(0,0) = Nx(0,0) * bcc111.X + Nx(1,0) * bcc111.Y + Nx(2,0) * bcc111.Z; //lower-left corner
+  box_lim.block<3,1>(0,1) = Nx(0,1) * bcc111.X + Nx(1,1) * bcc111.Y + Nx(2,1) * bcc111.Z; //upper-right corner
   box_lim.block<3,1>(0,2) << 0., 0., 0.; //start with orthogoanl box
 
   // calculate the number of atoms
-  Natoms = (Nx(0,1) - Nx(0,0)) * (Nx(1,1) - Nx(1,0)) * (Nx(2,1) - Nx(2,0)) * zrstd.motif.size();
+  Natoms = (Nx(0,1) - Nx(0,0)) * (Nx(1,1) - Nx(1,0)) * (Nx(2,1) - Nx(2,0)) * bcc111.motif.size();
 
   // print information on the box
   printf ( "... box dimensions in lattice units: \n     X = [%i %i]\n     Y = [%i %i]\n     Z = [%i %i]\n",
            Nx(0,0), Nx(0,1), Nx(1,0), Nx(1,1), Nx(2,0), Nx(2,1));
   printf ( "    => %i atoms\n\n", Natoms);
 
-  printf ( "... spacings along X, Y, Z: %1.5f, %1.5f, %1.5f\n", zrstd.X.norm(), zrstd.Y.norm(),zrstd.Z.norm());
+  printf ( "... spacings along X, Y, Z: %1.5f, %1.5f, %1.5f\n", bcc111.X.norm(), bcc111.Y.norm(),bcc111.Z.norm());
 
   printf ( "... box dimensions in A: \n     X = %1.4f --> %1.4f\n     Y = %1.4f --> %1.4f\n     Z = %1.4f --> %1.4f\n\n",
            box_lim(0,0), box_lim(0,1), box_lim(1,0), box_lim(1,1), box_lim(2,0), box_lim(2,1));
@@ -338,18 +343,18 @@ int main(int argc, char** argv){
 
   for (int i = 0; i < Natoms; ++i){
     atoms.push_back(Atom(i));
-    map_id_uc ( i, atoms[i].ucc, Nx, zrstd.motif.size() ); // change atom unit-cell coordinates
-    map_uc_real ( atoms[i], zrstd);
+    map_id_uc ( i, atoms[i].ucc, Nx, bcc111.motif.size() ); // change atom unit-cell coordinates
+    map_uc_real ( atoms[i], bcc111);
   }
 
   printf( "... done building crystal\n");
   if (argc > 7){
     if (strcmp(argv[7],"e") == 0){
-      int tmp = create_edge_xz ( atoms, zrstd, box_lim, Nx );
+      int tmp = create_edge_xz ( atoms, bcc111, box_lim, Nx );
       printf ( "+++ created edge dislocation with b=x, n=z, %i atoms deleted \n", tmp);
     }
     else{
-      create_screw_xz(atoms, zrstd, box_lim, Nx);
+      create_screw_xz(atoms, bcc111, box_lim, Nx);
       printf ( "+++ create screw dislocation with b=x, n=z,\n");
       printf ( "    box has been sheared, new limits:\n");
       std::cout << box_lim << std::endl;
@@ -358,9 +363,9 @@ int main(int argc, char** argv){
 
 
   std::FILE * fp;
-  fp = fopen ( "zr.data", "w");
-  write_lammps_data_file ( fp, atoms, zrstd, box_lim );
-  printf ( "... done writing to zr.data\n" );
+  fp = fopen ( "fe.data", "w");
+  write_lammps_data_file ( fp, atoms, bcc111, box_lim );
+  printf ( "... done writing to fe.data\n" );
 
 
 
