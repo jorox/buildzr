@@ -283,36 +283,16 @@ int main(int argc, char** argv){
     Z = [-1100]
     We have 4 basis atoms in this unit cell i.e. it is not the primitive; however, it is orthogonal
   */
-  /*
-  struct UnitCell zrstd;
-
-  zrstd.X << _ALAT, 0.0, 0.0; // 1/3[11-20]
-  zrstd.Y << 0.0, _CLAT, 0.0; // [0001]
-  zrstd.Z << 0.0, 0.0, sqrt(3.0) * _ALAT; // [1-100]
-
-  zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.0, 0.995));   //A-plane
-  zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.5, 1./3.)); //B-plane
-  zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.0, 0.5));   //A-plane
-  zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.5, 0.5+1./3.)); //B-plane
-  */
-
-  /*
-    Zirconium unit cell
-    X = 1/3[11-20]
-    Y = [0001]
-    Z = [-1100]
-    We have 4 basis atoms in this unit cell i.e. it is not the primitive; however, it is orthogonal
-  */
     struct UnitCell zrstd;
 
     zrstd.X << _ALAT, 0.0, 0.0; // 1/3[11-20]
     zrstd.Y << 0.0, sqrt(3.0) * _ALAT, 0.0; // [1-100]
     zrstd.Z << 0.0, 0.0, _CLAT; // [0001]
 
-    zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.995, 0.0));   //A-plane
-    zrstd.motif.push_back(Eigen::Vector3f (0.0, 1./3., 0.5)); //B-plane
+    zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.0, 0.0));   //A-plane
+    zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.16666667, 0.5)); //B-plane
     zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.5, 0.0));   //A-plane
-    zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.5+1./3., 0.5)); //B-plane
+    zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.66666667, 0.5)); //B-plane
 
   /*
     The box is defined by the repeat vectors Nx[:,i]
@@ -345,6 +325,11 @@ int main(int argc, char** argv){
   printf ( "... box dimensions in A: \n     X = %1.4f --> %1.4f\n     Y = %1.4f --> %1.4f\n     Z = %1.4f --> %1.4f\n\n",
            box_lim(0,0), box_lim(0,1), box_lim(1,0), box_lim(1,1), box_lim(2,0), box_lim(2,1));
 
+
+
+  UnitCell zrstdLambda;
+  zrstdLambda = zrstd;
+  zrstdLambda.Y += Eigen::Vector3f(
 
   printf("... building crystal\n");
   std::vector<Atom> atoms;
