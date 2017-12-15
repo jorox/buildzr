@@ -8,10 +8,12 @@ int enki::ratio_of_atoms( const UnitCell& old, const UnitCell& shiny){
   return floor( shiny.volume() / old.volume() );
 }
 
-bool enki::compare_eps(Eigen::Vector3f v1, Eigen::Vector3f v2){
-  bool res = (v2-v1).norm() > _EPS_;
-  //std::cout << "comparing results = " << res <<  std::endl << v1 << std::endl << v2 << std::endl;
-  return res;
+bool enki::mysearch(std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f> > &atoms,
+                    Eigen::Vector3f& v2){
+  for (int i = 0; i < atoms.size(); ++i){
+    if ( (v2-atoms[i]).norm() < 5 * _EPS_ ){ return true; }
+  }
+  return false;
 }
 
 void enki::transform (const UnitCell& old, Eigen::Matrix3f& miller, UnitCell& shiny){
@@ -35,6 +37,10 @@ void enki::transform (const UnitCell& old, Eigen::Matrix3f& miller, UnitCell& sh
   repeats.block<3,1>(0,0) << miller.rowwise().minCoeff(); //choose the minimum h, k, l
   repeats.block<3,1>(0,1) << miller.rowwise().maxCoeff(); //choose the maximum h, k, l
 
+  // take the integer Miller indices for the repeats
+  for (int i = 0; i < 3; ++i){ repeats(i,0) = floor(repeats(i,0))-1.0; }
+  for (int i = 0; i < 3; ++i){ repeats(i,1) = ceil(repeats(i,1))+1.0; }
+
   // generate the atoms i.e. get coordinates in standard basis (Angstroms)
   std::vector<Eigen::Vector3f,Eigen::aligned_allocator<Eigen::Vector3f>> atomsOld;
   old.generate(repeats, atomsOld);
@@ -55,9 +61,10 @@ void enki::transform (const UnitCell& old, Eigen::Matrix3f& miller, UnitCell& sh
   // check for duplicates
   std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f> > uniqueAtomsShiny;
   for (int i = 0; i < atomsShiny.size(); ++i){
-    if ( false == std::binary_search( uniqueAtomsShiny.begin(), uniqueAtomsShiny.end(), atomsShiny[i], compare_eps ) ){
+    if ( !enki::mysearch(uniqueAtomsShiny, atomsShiny[i]) ){
+    //if (true){
       uniqueAtomsShiny.push_back(atomsShiny[i]);
-      std::cout << "    pushing 1 unique" << std::endl;
+      std::cout << "    pushing 1 unique i = " << i << "  " << atomsShiny[i].transpose() << std::endl;
     }
   }
 
@@ -65,12 +72,9 @@ void enki::transform (const UnitCell& old, Eigen::Matrix3f& miller, UnitCell& sh
   if ( uniqueAtomsShiny.size() != roa * old.number_of_atoms() ){
     std::cout << "ENKI; ERROR - cannot find the expected number of atoms" << std::endl;
   }
-  else{
-    shiny.basis.resize(3, uniqueAtomsShiny.size());
-    for (int i = 0; i < uniqueAtomsShiny.size(); ++i){
-      shiny.basis.block<3,1>(0,i) << uniqueAtomsShiny[i];
-    }
+  shiny.basis.resize(3, uniqueAtomsShiny.size());
+  for (int i = 0; i < uniqueAtomsShiny.size(); ++i){
+    shiny.basis.block<3,1>(0,i) << uniqueAtomsShiny[i];
   }
-
 
 }
