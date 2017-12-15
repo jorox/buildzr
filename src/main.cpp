@@ -26,6 +26,11 @@ struct Atom {
 
 /**
    The function changes an atom index (int) into unit-cell corrdinates
+   the function is based on the idea that the creation of an atom list proceeds in a predictable
+   fashion. For example, if the unit cell contains 4 basis atoms, each 4 consecutive atoms will belong to the
+   same unit cell, then the next four are shifted by ix, the, 2*ix, then 3*ix, and so on until the limit is reached at
+   which point iy is iterated, then ix again, and so on unitl iz. In this way it is possible to change the atom id (1-D) to
+   the atom fractional coordinates: ix, iy, iz, ib (4-D)
  **/
 void map_id_uc(int& idAtom, Eigen::Vector4i& uccAtom, Eigen::Matrix<int, 3,2>& boxUcLims, int nBasisAtoms){
 
@@ -89,7 +94,7 @@ void map_uc_real(Atom& aatom, UnitCell& unit){
    Write an atom list to a LAMMPS data file
    Only orthogonal box, 1 atom type, 1 header, and 1 orientation defined for the moment
  **/
-void write_lammps_data_file( std::FILE* fstream, std::vector<Atom>& atomList, UnitCell& uc, Eigen::Matrix<float,3,3>& boxLims ){
+int write_lammps_data_file( std::FILE* fstream, std::vector<Atom>& atomList, UnitCell& uc, Eigen::Matrix<float,3,3>& boxLims ){
 
   // count number of valid atoms
   int natoms = atomList.size();
@@ -116,6 +121,8 @@ void write_lammps_data_file( std::FILE* fstream, std::vector<Atom>& atomList, Un
     fprintf ( fstream, "\n\t%i\t%i\t %1.6f %1.6f %1.6f", iatom, 1,
               atomList[i].coords(0), atomList[i].coords(1), atomList[i].coords(2));
   }
+
+  return iatom;
 
 }
 
@@ -209,11 +216,11 @@ void wrap_box(std::vector<Atom>& atomList, Eigen::Matrix<float,3,3>& boxLims){
   Eigen::Vector3f rAtom;
   for (int i = 0; i < atomList.size(); ++i){
     rAtom = atomList[i].coords - origin; // calculate distance from origin (llc)
-    rAtom = T * rAtom; // 0 <= rAtom(i) < 1 // transform to box space
+    rAtom = invT * rAtom; // 0 <= rAtom(i) < 1 // transform to box space
     for (int j = 0; j < 3; ++j){
       rAtom(j) -= floor(rAtom(j));  // return to central image
     }
-    rAtom = invT * rAtom; // return to standard space and shift
+    rAtom = T * rAtom; // return to standard space and shift
     rAtom = rAtom + origin;
   }
 }
@@ -222,32 +229,96 @@ void wrap_box(std::vector<Atom>& atomList, Eigen::Matrix<float,3,3>& boxLims){
    Create a scew dislocation along xz
  **/
 
-void create_screw_xz(std::vector<Atom>& atomList, UnitCell& uc, Eigen::Matrix<float, 3, 3>& boxLims, Eigen::Matrix<int, 3,2>& boxUcLims){
+int create_screw_xz(std::vector<Atom>& atomList, UnitCell& uc,
+                    Eigen::Matrix<float, 3, 3>& boxLims, Eigen::Matrix<int, 3,2>& boxUcLims){
 
-  Eigen::Vector3f centerPoint;
-  centerPoint << boxLims(0,0) + boxLims(0,1), boxLims(1,0) + boxLims(1,1), boxLims(2,0) + boxLims(2,1);
-  centerPoint /= 2.0;
+  wrap_box(atomList, boxLims);
+  //
+  int Nx = boxUcLims(0,1) - boxUcLims(0,0);
+  int Ny = boxUcLims(1,1) - boxUcLims(1,0);
+  int Nz = boxUcLims(2,1) - boxUcLims(2,0);
 
-  double y;
-  double z;
-  double ux;
-  double burgers = uc.X.norm();
-  for (int i = 0; i < atomList.size(); ++i){
-    y = atomList[i].coords(1) - centerPoint(1);
-    z = atomList[i].coords(2) - centerPoint(2);
+  // find the mid-plane along the Z-direction
+  int midz = boxUcLims(2,1) + boxUcLims(2,0);
+  if (midz % 2 != 0){
+    midz++;
+  }
+  midz = (int)midz / 2;
 
-    ux = burgers / 2.0 / _PI_ * std::atan2(z, y);
-    atomList[i].coords(0) += ux;
+  Eigen::Vector3f tlambda;
+  Eigen::Vector3f tmu;
+  Eigen::Vector3f origin;
+
+  tlambda << -0.5*uc.X.norm(), (Ny+0.5)*uc.Y.norm(), 0.0;
+  tmu << 0.5 * uc.X.norm(), (Ny + 0.5) * uc.Y.norm(), 0.0;
+  origin << boxLims(0,0), boxLims(1,0), midz * uc.Z.norm();
+
+  Eigen::Matrix<float, 3, 3> lambda;
+  Eigen::Matrix<float, 3, 3> mu;
+
+  // X-vector
+  lambda.block<3,1>(0,0) << boxLims(0,1) - boxLims(0,0), 0.0, 0.0;
+  mu.block<3,1>(0,0) << boxLims(0,1) - boxLims(0,0), 0.0, 0.0;
+  // Y-vector
+  lambda.block<3,1>(0,1) = tlambda;
+  mu.block<3,1>(0,1) = tmu;
+  // Z-vector
+  lambda.block<3,1>(0,2) << 0.0, 0.0, boxLims(2,1) - origin(2);
+  mu.block<3,1>(0,2) << 0.0, 0.0, origin(2) - boxLims(2,0);
+
+  int nrm = 0;
+  // loop over atoms and remove the ones that do not belong to mu or lambda
+  Eigen::Matrix3f invLambda = lambda.inverse();
+  Eigen::Matrix3f invMu = mu.inverse();
+  Eigen::Vector3f dummyAtomLambda;
+  Eigen::Vector3f dummyAtomMu;
+  Eigen::Matrix3f eMu = Eigen::Matrix3f::Identity();
+  Eigen::Matrix3f eLambda = Eigen::Matrix3f::Identity();
+
+  eMu(0,1) = -0.5 * uc.X.norm() / mu.block<3, 1>(0, 1).norm();
+  eLambda(0,1) = -eMu(0,1);
+
+  for (int ia = 0; ia < atomList.size(); ++ia){
+    dummyAtomLambda = atomList[ia].coords - origin;
+    dummyAtomLambda = invLambda * dummyAtomLambda;
+
+    dummyAtomMu = atomList[ia].coords - boxLims.block<3,1>(0,0);
+    dummyAtomMu = invMu * dummyAtomMu;
+
+    if (floor(dummyAtomLambda(2)) == 0){ //lambda-block
+      if ( dummyAtomLambda(0) > 1){
+        continue;
+        atomList[ia]._id = -1;
+        nrm++;
+      }
+    }
+    else{
+      if ( floor(dummyAtomMu(2)) != 0 ) { std::cout << "ERROR!!!!" << std::endl; }
+      if ( dummyAtomMu(0) < 0. ){
+        atomList[ia]._id = -1;
+        nrm++;
+      }
+    }
+
+    /**
+    else{
+      //atomList[ia]._id = -1;
+      //nrm++;
+      continue;
+      if ( floor(dummyAtomMu(2)) == 0 ){ //mu block
+        atomList[ia].coords = eMu * atomList[ia].coords;
+      }
+      else{
+        if ( floor(dummyAtomLambda(2)) != 0) {std::cout << "ERROR!!!!" << std::endl;}
+        atomList[ia].coords = eLambda * atomList[ia].coords;
+      }
+      }
+    **/
   }
 
-  // shear box by a/2
-  boxLims(0,2) = burgers / 2.0;
-  double Ly = boxLims(1,1) - boxLims(1,0);
-  boxLims(1,1) = sqrt( Ly * Ly - burgers * burgers / 4.0 ) + boxLims(1,0);
-
-  // wrap atoms
-  wrap_box( atomList, boxLims);
-
+  // shear the box
+  //boxLims(1,1) -= 0.5 * uc.Y.norm();
+  return nrm;
 }
 
 int main(int argc, char** argv){
@@ -349,18 +420,17 @@ int main(int argc, char** argv){
       printf ( "+++ created edge dislocation with b=x, n=z, %i atoms deleted \n", tmp);
     }
     else{
-      create_screw_xz(atoms, zrstd, box_lim, Nx);
+      int tmp = create_screw_xz(atoms, zrstd, box_lim, Nx);
       printf ( "+++ create screw dislocation with b=x, n=z,\n");
-      printf ( "    box has been sheared, new limits:\n");
-      std::cout << box_lim << std::endl;
+      printf ( "    %i atoms removed:\n", tmp);
     }
   }
 
 
   std::FILE * fp;
   fp = fopen ( "zr.data", "w");
-  write_lammps_data_file ( fp, atoms, zrstd, box_lim );
-  printf ( "... done writing to zr.data\n" );
+  int tmp = write_lammps_data_file ( fp, atoms, zrstd, box_lim );
+  printf ( "... done writing %i atoms to zr.data\n", tmp );
 
 
 
