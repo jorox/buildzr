@@ -114,7 +114,8 @@ void jallisa (UnitCell& cell){
    wrap atoms outside the box
 **/
 
-void enki::wrap_atoms_box(std::vector<Atom>& atoms, const Eigen::Matrix<float, 3, 4> &box){
+void enki::wrap_atoms_box(std::vector<Atom>& atoms,
+                          const Eigen::Matrix<float, 3, 4> &box){
   // calculate the box vectors
 
   Eigen::Matrix3f T = box.block<3,3>(0,0); //transformation matrix

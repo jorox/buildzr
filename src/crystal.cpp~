@@ -1,0 +1,6 @@
+#include "crystal.h"
+#include <vector>
+#include "Eigen/Dense"
+#include "Eigen/Stdvector"
+#include <iostream>
+#include <stdio.h>

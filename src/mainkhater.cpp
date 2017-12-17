@@ -6,95 +6,20 @@
 #include "Eigen/Core"
 #include "Eigen/Dense"
 #include "Eigen/StdVector"
+#include "atom.h"
+#include "unitcell.h"
+#include "crystal.h"
+#include "enki.h"
 
-double _PI_ = 3.1415926535897;
-
-struct UnitCell {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  Eigen::Vector3f X, Y, Z;
-  std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f>> motif;
-};
-
-struct Atom {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  int _id;
-  Eigen::Vector4i ucc; // unit-cell coordinates
-  Eigen::Vector3f coords; // real coordinates
-
-  Atom (int id): _id(id) {}
-};
-
-/**
-   The function changes an atom index (int) into unit-cell corrdinates
-   the function is based on the idea that the creation of an atom list proceeds in a predictable
-   fashion. For example, if the unit cell contains 4 basis atoms, each 4 consecutive atoms will belong to the
-   same unit cell, then the next four are shifted by ix, the, 2*ix, then 3*ix, and so on until the limit is reached at
-   which point iy is iterated, then ix again, and so on unitl iz. In this way it is possible to change the atom id (1-D) to
-   the atom fractional coordinates: ix, iy, iz, ib (4-D)
- **/
-void map_id_uc(int& idAtom, Eigen::Vector4i& uccAtom, Eigen::Matrix<int, 3,2>& boxUcLims, int nBasisAtoms){
-
-  if (idAtom < 0){
-    //printf("reverse mapping %i %i %i %i\n", uccAtom(0), uccAtom(1), uccAtom(2), uccAtom(3));
-    //fflush(stdout);
-    int Nx = boxUcLims(0,1) - boxUcLims(0,0);
-    int Ny = boxUcLims(1,1) - boxUcLims(1,0);
-    int Nz = boxUcLims(2,1) - boxUcLims(2,0);
-
-    idAtom = uccAtom(0); //ib
-    idAtom += (uccAtom(1) - boxUcLims(0,0)) * nBasisAtoms; // ix * Nb
-    idAtom += (uccAtom(2) - boxUcLims(1,0)) * nBasisAtoms * Nx;
-    idAtom += (uccAtom(3) - boxUcLims(2,0)) * nBasisAtoms * Nx * Ny;
-
-  }
-  else{
-    int ib, ix, iy, iz; // indices in order of precedence
-    int Nx, Ny, Nz; // number of unit cells
-    int maxId; // max id possible
-
-    Nx = boxUcLims(0,1) - boxUcLims(0,0); // number of unit cells aling X
-    Ny = boxUcLims(1,1) - boxUcLims(1,0); // number of unit cells along Y
-    Nz = boxUcLims(2,1) - boxUcLims(2,0); // number of unit cells aling Z
-
-    maxId = Nx * Ny * Nz * nBasisAtoms; // max id possible
-
-    ib = idAtom % nBasisAtoms; // fastest changing index
-    ix = (int) idAtom / nBasisAtoms; // next fastest index
-    ix = (ix % Nx) + boxUcLims(0,0);
-    iy = (int) idAtom / (nBasisAtoms * Nx);
-    iy = (iy % Ny) + boxUcLims(1,0);
-    iz = (int) idAtom / (nBasisAtoms * Nx * Ny);
-    iz = (iz % Nz) + boxUcLims(2,0);
-
-    uccAtom << ib, ix, iy, iz;
-  }
-}
-
-/**
-   return the unit-coordinates of the atom
- **/
-void get_atom_uc(Atom& aatom, UnitCell& unit, Eigen::Vector3f& atomUc){
-  atomUc << aatom.ucc(1), aatom.ucc(2), aatom.ucc(3);
-  atomUc += unit.motif[aatom.ucc(0)];
-}
-
-/**
-   Use an atom's unit-cell coordinates to calculate its coordinates in real space
-   The method accepts non-orthogonal unit-cells. However, it has not been tested
- **/
-void map_uc_real(Atom& aatom, UnitCell& unit){
-  Eigen::Vector3f tmpUc;
-  get_atom_uc( aatom, unit, tmpUc);
-  aatom.coords = tmpUc(0) * unit.X + tmpUc(1) * unit.Y + tmpUc(2) * unit.Z;
-}
-
-
+static constexpr double _PI_ = 3.1415926535897;
 
 /**
    Write an atom list to a LAMMPS data file
    Only orthogonal box, 1 atom type, 1 header, and 1 orientation defined for the moment
  **/
-int write_lammps_data_file( std::FILE* fstream, std::vector<Atom>& atomList, UnitCell& uc, Eigen::Matrix<float,3,3>& boxLims ){
+int write_lammps_data_file( std::FILE* fstream,
+                            std::vector<Atom>& atomList,
+                            Eigen::Matrix<float,3,4>& boxLims ){
 
   // count number of valid atoms
   int natoms = atomList.size();
@@ -102,14 +27,24 @@ int write_lammps_data_file( std::FILE* fstream, std::vector<Atom>& atomList, Uni
     if (atomList[i]._id == -1){ natoms--; }
   }
 
+  // make sure the box is upper triangular
+  for (int i = 1; i < 3; ++i){
+    for (int j = i-1; j < i; ++j){
+      if (boxLims(i,j) > 1.e-4){
+        std::cout << "ERROR: Crystal is not well oriented, no atoms written" << std::endl;
+        return 0;
+      }
+    }
+  }
+
   // write the header
   fprintf ( fstream, "#ver .1, HCP-Zr [11-20], [0001], [-1100], metal units\n");
   fprintf ( fstream, "    %i atoms\n", natoms);
   fprintf ( fstream, "    1 atom types\n\n");
-  fprintf ( fstream, "%1.6f %1.6f xlo xhi\n", boxLims(0,0), boxLims(0,1));
-  fprintf ( fstream, "%1.6f %1.6f ylo yhi\n", boxLims(1,0), boxLims(1,1));
-  fprintf ( fstream, "%1.6f %1.6f zlo zhi\n", boxLims(2,0), boxLims(2,1));
-  fprintf ( fstream, "%1.6f %1.6f %1.6f xy xz yz\n\n", boxLims(0,2), boxLims(1,2), boxLims(2,2));
+  fprintf ( fstream, "%1.6f %1.6f xlo xhi\n", boxLims(0,3), boxLims(0,0)+boxLims(0,3));
+  fprintf ( fstream, "%1.6f %1.6f ylo yhi\n", boxLims(1,3), boxLims(1,1)+boxLims(1,3));
+  fprintf ( fstream, "%1.6f %1.6f zlo zhi\n", boxLims(2,3), boxLims(2,2)+boxLims(2,3));
+  fprintf ( fstream, "%1.6f %1.6f %1.6f xy xz yz\n\n", boxLims(0,1), boxLims(0,2), boxLims(1,2));
   fprintf ( fstream, "Masses\n\n");
   fprintf ( fstream, "    1 91.224\n\n");
   fprintf ( fstream, "Atoms\n");
@@ -126,141 +61,119 @@ int write_lammps_data_file( std::FILE* fstream, std::vector<Atom>& atomList, Uni
 
 }
 
+int create_perfect( const UnitCell& cell,
+                    const Eigen::Matrix<float,3,2>& Nx,
+                    std::vector<Atom>& atoms,
+                    Eigen::Matrix<float,3,4>& box){
+
+  UnitCell cell0(cell); // create a temporary unit cell
+  Crystal xtal(0, Nx, &cell0);
+  int Natoms = xtal.build(atoms);
+  enki::get_box_vectors(cell, Nx, box);
+  return Natoms;
+
+}
+
 /**
    Create an edge dislocation with Burgers vector b = x, and n = z
    Atoms are not deleted to preserve fast id-ucc mapping.
    Instead their id is changed to -1 in which case they are not written out.
  **/
-int create_edge_xz(std::vector<Atom>& atomList, UnitCell& uc, Eigen::Matrix<float, 3, 3>& boxLims, Eigen::Matrix<int, 3,2>& boxUcLims){
+int create_edge_xz(const UnitCell& cell,
+                   const Eigen::Matrix<float,3,2>& Ntiles,
+                   std::vector<Atom>& atoms1,
+                   Eigen::Matrix<float,3,4>& box1,
+                   std::vector<Atom>& atoms2,
+                   Eigen::Matrix<float,3,4>& box2){
 
-}
-
-/**
-   wrap atoms outside the box
-**/
-void wrap_box(std::vector<Atom>& atomList, Eigen::Matrix<float,3,3>& boxLims){
-
-  // calculate the box vectors
-  Eigen::Vector3f boxX, boxY, boxZ;
-  Eigen::Vector3f origin;
-
-  boxX << boxLims(0,1) - boxLims(0,0), 0.0, 0.0;
-  boxY << boxLims(0,2), boxLims(1,1) - boxLims(1,0), 0.0;
-  boxZ << boxLims(1,2), boxLims(2,2), boxLims(2,1) - boxLims(2,0);
-
-  Eigen::Matrix3f T; //transformation matrix
-  T << boxX(0), boxY(0), boxZ(0), boxX(1), boxY(1), boxZ(1), boxX(2), boxY(2), boxZ(2);
-  Eigen::Matrix3f invT;
-  invT = T.inverse();
-
-  origin << boxLims(0,0), boxLims(1,0), boxLims(2,0);
-
-  Eigen::Vector3f rAtom;
-  for (int i = 0; i < atomList.size(); ++i){
-    rAtom = atomList[i].coords - origin; // calculate distance from origin (llc)
-    rAtom = invT * rAtom; // 0 <= rAtom(i) < 1 // transform to box space
-    for (int j = 0; j < 3; ++j){
-      rAtom(j) -= floor(rAtom(j));  // return to central image
-    }
-    rAtom = T * rAtom; // return to standard space and shift
-    rAtom = rAtom + origin;
-  }
-}
-
-/**
-   Create a scew dislocation along xz
- **/
-
-int create_screw_xz(std::vector<Atom>& atomList, UnitCell& uc,
-                    Eigen::Matrix<float, 3, 3>& boxLims, Eigen::Matrix<int, 3,2>& boxUcLims){
-
-  wrap_box(atomList, boxLims);
   //
-  int Nx = boxUcLims(0,1) - boxUcLims(0,0);
-  int Ny = boxUcLims(1,1) - boxUcLims(1,0);
-  int Nz = boxUcLims(2,1) - boxUcLims(2,0);
+  int Nx = Ntiles(0,1) - Ntiles(0,0);
+  int Ny = Ntiles(1,1) - Ntiles(1,0);
+  int Nz = Ntiles(2,1) - Ntiles(2,0);
+  float b = cell.ucv.block<3, 1>(0, 0).norm();
 
   // find the mid-plane along the Z-direction
-  int midz = boxUcLims(2,1) + boxUcLims(2,0);
+  int midz = Ntiles(2,1) + Ntiles(2,0);
   if (midz % 2 != 0){
     midz++;
   }
   midz = (int)midz / 2;
 
-  Eigen::Vector3f tlambda;
-  Eigen::Vector3f tmu;
-  Eigen::Vector3f origin;
+  // Create Lambda Mu unit cells
+  UnitCell ucLambda(cell);
+  UnitCell ucMu(cell);
+  ucLambda.ucv(0, 0) -= 0.5*b/Nx;
+  ucMu.ucv(0,0) += 0.5*b/Nx;
 
-  tlambda << -0.5*uc.X.norm(), (Ny+0.5)*uc.Y.norm(), 0.0;
-  tmu << 0.5 * uc.X.norm(), (Ny + 0.5) * uc.Y.norm(), 0.0;
-  origin << boxLims(0,0), boxLims(1,0), midz * uc.Z.norm();
+  // Repeats
+  Eigen::Matrix<float,3,2> Nlambda = Ntiles;
+  Eigen::Matrix<float,3,2> Nmu = Ntiles;
+  Nmu(0,1)--;
+  Nmu(2,1) = midz;
+  Nlambda(2,0) = midz;
 
-  Eigen::Matrix<float, 3, 3> lambda;
-  Eigen::Matrix<float, 3, 3> mu;
+  // Crystals
+  Crystal mu(0, Nmu, &ucMu);
+  Crystal lambda(1, Nlambda, &ucLambda);
 
-  // X-vector
-  lambda.block<3,1>(0,0) << boxLims(0,1) - boxLims(0,0), 0.0, 0.0;
-  mu.block<3,1>(0,0) << boxLims(0,1) - boxLims(0,0), 0.0, 0.0;
-  // Y-vector
-  lambda.block<3,1>(0,1) = tlambda;
-  mu.block<3,1>(0,1) = tmu;
-  // Z-vector
-  lambda.block<3,1>(0,2) << 0.0, 0.0, boxLims(2,1) - origin(2);
-  mu.block<3,1>(0,2) << 0.0, 0.0, origin(2) - boxLims(2,0);
+  // Atoms and boxes
+  int N1 = mu.build(atoms1);
+  int N2 = lambda.build(atoms2);
+  enki::get_box_vectors(ucMu, Nmu, box1);
+  enki::get_box_vectors(ucLambda, Nlambda, box2);
 
-  int nrm = 0;
-  // loop over atoms and remove the ones that do not belong to mu or lambda
-  Eigen::Matrix3f invLambda = lambda.inverse();
-  Eigen::Matrix3f invMu = mu.inverse();
-  Eigen::Vector3f dummyAtomLambda;
-  Eigen::Vector3f dummyAtomMu;
-  Eigen::Matrix3f eMu = Eigen::Matrix3f::Identity();
-  Eigen::Matrix3f eLambda = Eigen::Matrix3f::Identity();
+  return N1+N2;
 
-  eMu(0,1) = -0.5 * uc.X.norm() / mu.block<3, 1>(0, 1).norm();
-  eLambda(0,1) = -eMu(0,1);
+}
 
-  for (int ia = 0; ia < atomList.size(); ++ia){
-    dummyAtomLambda = atomList[ia].coords - origin;
-    dummyAtomLambda = invLambda * dummyAtomLambda;
+int create_screw_xz( const UnitCell& cell,
+                     const Eigen::Matrix<float,3,2>& Nx,
+                     std::vector<Atom>& atoms1,
+                     Eigen::Matrix<float,3,4>& box1,
+                     std::vector<Atom>& atoms2,
+                     Eigen::Matrix<float,3,4>& box2){
 
-    dummyAtomMu = atomList[ia].coords - boxLims.block<3,1>(0,0);
-    dummyAtomMu = invMu * dummyAtomMu;
+  float b = cell.ucv.block<3,1>(0,0).norm();
+  float dy = cell.ucv.block<3,1>(0,1).norm();
+  float Ny = Nx(1,1) - Nx(1,0);
+  float Nz = Nx(2,1) - Nx(2,0);
 
-    if (floor(dummyAtomLambda(2)) == 0){ //lambda-block
-      if ( dummyAtomLambda(0) > 1){
-        continue;
-        atomList[ia]._id = -1;
-        nrm++;
-      }
-    }
-    else{
-      if ( floor(dummyAtomMu(2)) != 0 ) { std::cout << "ERROR!!!!" << std::endl; }
-      if ( dummyAtomMu(0) < 0. ){
-        atomList[ia]._id = -1;
-        nrm++;
-      }
-    }
+  Eigen::Matrix3f ucShift;
+  ucShift << 0., -0.5*b/Ny, 0.,
+    0., 0., 0.,
+    0., 0., 0.;
 
-    /**
-    else{
-      //atomList[ia]._id = -1;
-      //nrm++;
-      continue;
-      if ( floor(dummyAtomMu(2)) == 0 ){ //mu block
-        atomList[ia].coords = eMu * atomList[ia].coords;
-      }
-      else{
-        if ( floor(dummyAtomLambda(2)) != 0) {std::cout << "ERROR!!!!" << std::endl;}
-        atomList[ia].coords = eLambda * atomList[ia].coords;
-      }
-      }
-    **/
-  }
+  UnitCell lambdaUC(cell);
+  lambdaUC.ucv += ucShift;
+  //std::cout << "ddd lambda_uc=\n" << lambdaUC.ucv << std::endl;
+  //ucShift(0,1) *= -1.;
+  UnitCell muUC(cell);
+  muUC.ucv -= ucShift;
+  //std::cout << "ddd mu_uc=\n" << muUC.ucv << std::endl;
+  //std::cout << "ddd uc=\n" << cell.ucv << std::endl;
 
-  // shear the box
-  //boxLims(1,1) -= 0.5 * uc.Y.norm();
-  return nrm;
+  Eigen::Matrix<float,3,2> Nlambda = Nx;
+  Eigen::Matrix<float,3,2> Nmu = Nx;
+  Nmu(2,1) = Nmu(2,0) + (int)Nz/2;
+  Nlambda(2,0) = Nmu(2,1);
+
+  //std::cout << "ddd Nmu=\n" << Nmu << std::endl;
+  //std::cout << "ddd Nlambda=\n" << Nlambda << std::endl;
+
+  Crystal lambda (0, Nlambda, &lambdaUC);
+  Crystal mu (1, Nmu, &muUC);
+
+  int N1 = mu.build(atoms1);
+  int N2 = lambda.build(atoms2);
+
+  enki::get_box_vectors(muUC, Nmu, box1);
+  enki::get_box_vectors(lambdaUC, Nlambda, box2);
+
+  box2(0,1) = box1(0,1);
+
+  return N1+N2;
+
+
 }
 
 int main(int argc, char** argv){
@@ -270,124 +183,114 @@ int main(int argc, char** argv){
     return 1;
   }
 
-  /*
-    lattice constants
-   */
   double _ALAT = 3.23; // Angstrom
   double _CLAT = 5.165;
-
-  /*
-    Zirconium unit cell
-    X = 1/3[11-20]
-    Y = [0001]
-    Z = [-1100]
-    We have 4 basis atoms in this unit cell i.e. it is not the primitive; however, it is orthogonal
-  */
-    struct UnitCell zrstd;
-
-    zrstd.X << _ALAT, 0.0, 0.0; // 1/3[11-20]
-    zrstd.Y << 0.0, sqrt(3.0) * _ALAT, 0.0; // [1-100]
-    zrstd.Z << 0.0, 0.0, _CLAT; // [0001]
-
-    zrstd.motif.push_back(Eigen::Vector3f (0.0, 0.0, 0.0));   //A-plane
-    zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.16666667, 0.5)); //B-plane
-    zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.5, 0.0));   //A-plane
-    zrstd.motif.push_back(Eigen::Vector3f (0.5, 0.66666667, 0.5)); //B-plane
-
-  /*
-    The box is defined by the repeat vectors Nx[:,i]
-    The bottom-left and top-right corners are the multiple of the unit cell vectors with the number of unit cells
-    along that direction. Note that in this way the bottom-left corner might NOT be the left-most point if the
-    unit cell is not orthogonal for example.
-   */
-  Eigen::Matrix<int, 3, 2> Nx; // box dimensions in unit cell
-  Eigen::Matrix<float, 3, 3> box_lim; // box limits i.e bottom-left and top-right corners
-  int Natoms = 0;
-
-  for (int i = 1; i<7; ++i){
-    Nx((i - 1)/2, (i-1)%2) = atoi(argv[i]);
-  }
-  // calculate the blc and trc
-  box_lim.block<3,1>(0,0) = Nx(0,0) * zrstd.X + Nx(1,0) * zrstd.Y + Nx(2,0) * zrstd.Z; //lower-left corner
-  box_lim.block<3,1>(0,1) = Nx(0,1) * zrstd.X + Nx(1,1) * zrstd.Y + Nx(2,1) * zrstd.Z; //upper-right corner
-  box_lim.block<3,1>(0,2) << 0., 0., 0.; //start with orthogoanl box
-
-  // calculate the number of atoms
-  Natoms = (Nx(0,1) - Nx(0,0)) * (Nx(1,1) - Nx(1,0)) * (Nx(2,1) - Nx(2,0)) * zrstd.motif.size();
-
-  // print information on the box
-  printf ( "... box dimensions in lattice units: \n     X = [%i %i]\n     Y = [%i %i]\n     Z = [%i %i]\n",
-           Nx(0,0), Nx(0,1), Nx(1,0), Nx(1,1), Nx(2,0), Nx(2,1));
-  printf ( "    => %i atoms\n\n", Natoms);
-
-  printf ( "... spacings along X, Y, Z: %1.5f, %1.5f, %1.5f\n", zrstd.X.norm(), zrstd.Y.norm(),zrstd.Z.norm());
-
-  printf ( "... box dimensions in A: \n     X = %1.4f --> %1.4f\n     Y = %1.4f --> %1.4f\n     Z = %1.4f --> %1.4f\n\n",
-           box_lim(0,0), box_lim(0,1), box_lim(1,0), box_lim(1,1), box_lim(2,0), box_lim(2,1));
-
-
-
-  UnitCell zrstdLambda;
-  zrstdLambda = zrstd;
-  zrstdLambda.Y += Eigen::Vector3f(
-
-  printf("... building crystal\n");
+  Eigen::Matrix<float,3,4> boxMat;
   std::vector<Atom> atoms;
 
-  for (int i = 0; i < Natoms; ++i){
-    atoms.push_back(Atom(i));
-    map_id_uc ( i, atoms[i].ucc, Nx, zrstd.motif.size() ); // change atom unit-cell coordinates
-    map_uc_real ( atoms[i], zrstd);
+  //  Zirconium unit cell
+  //  X = 1/3[11-20]
+  //  Y = [0001]
+  //  Z = [-1100]
+  //  We have 4 basis atoms in this unit cell i.e. it is not the primitive; however, it is orthogonal
+
+  Eigen::Matrix3f zrstd_basis;
+  Eigen::Matrix<float,3,Eigen::Dynamic> zrstd_motif(3,4);
+  Eigen::Matrix<float, 3, 2> Nx; // box dimensions in unit cell
+
+  /*
+  // Z - basal
+  zrstd_basis << _ALAT, 0.0, 0.0, // 1/3[11-20]
+    0.0, sqrt(3.0) * _ALAT, 0.0, // [1-100]
+    0.0, 0.0, _CLAT; // [0001]
+
+  zrstd_motif.block<3,1>(0,0) = Eigen::Vector3f (0.0, 0.0, 0.0);   //A-plane
+  zrstd_motif.block<3,1>(0,1) = Eigen::Vector3f (0.5, 0.16666667, 0.5); //B-plane
+  zrstd_motif.block<3,1>(0,2) = Eigen::Vector3f (0.5, 0.5, 0.0);   //A-plane
+  zrstd_motif.block<3,1>(0,3) = Eigen::Vector3f (0.0, 0.66666667, 0.5); //B-plane
+  */
+
+  // Z - prism
+  zrstd_basis << _ALAT, 0.0, 0.0, // 1/3[11-20]
+    0.0, _CLAT, 0.0, // [1-100]
+    0.0, 0.0, sqrt(3.0) * _ALAT; // [0001]
+
+  zrstd_motif.block<3,1>(0,0) = Eigen::Vector3f (0.0, 0.0, 0.0);   //A-plane
+  zrstd_motif.block<3,1>(0,1) = Eigen::Vector3f (0.5, 0.5, 0.16666667); //B-plane
+  zrstd_motif.block<3,1>(0,2) = Eigen::Vector3f (0.5, 0.0, 0.5);   //A-plane
+  zrstd_motif.block<3,1>(0,3) = Eigen::Vector3f (0.0, 0.5, 0.66666667); //B-plane
+  UnitCell zrstd_uc(zrstd_basis, zrstd_motif);
+
+
+  for (int i = 0; i < 6; ++i){ Nx((int)i/2, i%2) = std::atof (argv[i+1]); }
+
+
+  if (argc == 7){
+    // print information on the box
+    printf ( "... using repeats: \n     X = [%1.0f %1.0f]\n     Y = [%1.0f %1.0f]\n     Z = [%1.0f %1.0f]\n",
+           Nx(0,0), Nx(0,1), Nx(1,0), Nx(1,1), Nx(2,0), Nx(2,1));
+
+    Eigen::Vector3f box_spc;
+    zrstd_uc.size(box_spc);
+    printf ( "... spacings along X, Y, Z: %1.5f, %1.5f, %1.5f\n",
+           box_spc(0),
+           box_spc(1),
+           box_spc(2));
+
+    printf ( "... building perfect crystal\n");
+    int Natoms = create_perfect(zrstd_uc, Nx, atoms, boxMat);
+    printf( "    crystal built successfully\n");
+    printf ( "+++ Box (Angstrom) [h1|h2|h2|origin]:\n");
+    std::cout << boxMat << std::endl;
+    printf ( "+++  %i atoms", Natoms);
+
+    std::FILE * fp;
+    fp = fopen ( "zr.data", "w");
+    int tmp = write_lammps_data_file ( fp, atoms, boxMat );
+    printf ( "... done writing %i atoms to zr.data\n", tmp );
   }
 
-  printf( "... done building crystal\n");
+
   if (argc > 7){
+    Eigen::Matrix<float,3,4> boxMat1;
+    std::vector<Atom> atoms1;
+    int tmp;
     if (strcmp(argv[7],"e") == 0){
-      int tmp = create_edge_xz ( atoms, zrstd, box_lim, Nx );
-      printf ( "+++ created edge dislocation with b=x, n=z, %i atoms deleted \n", tmp);
+      tmp = create_edge_xz (zrstd_uc, Nx, atoms, boxMat, atoms1, boxMat1 );
+      printf ( "+++ created edge dislocation with b=x, n=z, %i atoms \n", tmp);
     }
     else{
-      int tmp = create_screw_xz(atoms, zrstd, box_lim, Nx);
-      printf ( "+++ create screw dislocation with b=x, n=z,\n");
-      printf ( "    %i atoms removed:\n", tmp);
+      tmp = create_screw_xz(zrstd_uc, Nx, atoms, boxMat, atoms1, boxMat1);
+      std::cout << "ddd boxMat=\n" << boxMat << std::endl;
+      std::cout << "ddd boxMat1=\n" << boxMat1 << std::endl;
+      printf ( "+++ created screw dislocation with b=x, n=z,\n");
+      printf ( "    %i atoms:\n", tmp);
     }
-  }
 
+    std::FILE * fp;
+    std::FILE * fp1;
+    std::FILE * fpp;
+    fp = fopen ( "zrMu.data", "w");
+    fp1 = fopen( "zrLm.data", "w");
+    fpp = fopen( "zr.data", "w");
+    tmp = write_lammps_data_file ( fp, atoms, boxMat );
+    printf ( "... done writing %i atoms to zrMu.data\n", tmp );
+    tmp = write_lammps_data_file (fp1, atoms1, boxMat1 );
+    printf ( "    done writing %i atoms to zrLm.data\n", tmp);
 
-  std::FILE * fp;
-  fp = fopen ( "zr.data", "w");
-  int tmp = write_lammps_data_file ( fp, atoms, zrstd, box_lim );
-  printf ( "... done writing %i atoms to zr.data\n", tmp );
+    std::vector<Atom> atomsFull;
+    atomsFull.reserve(atoms.size()+atoms1.size());
+    atomsFull.insert(atomsFull.end(), atoms.begin(), atoms.end());
+    atomsFull.insert(atomsFull.end(), atoms1.begin(), atoms1.end());
 
-
-
-
-
-
-
-  /** //Test map_id_uc function
-  printf ( "... testing <map_id_uc> function\n");
-  int tNb = 3;
-  Eigen::Matrix<int, 3, 2> testbox;
-  Eigen::Vector4i tucAtom;
-
-  testbox << 0, 3,
-    -1, 1,
-    0, 1;
-
-  int tNtot = (testbox(0,1) - testbox(0,0)) * (testbox(1,1) - testbox(1,0)) * (testbox(2,1) - testbox(2,0)) * tNb;
-
-  printf ("%i atoms:\n Nb = %i \n Nx = %i, %i\n Ny = %i, %i\n Nz= %i, %i", tNtot, tNb,
-          testbox(0,0), testbox(0,1),
-          testbox(1,0), testbox(1,1),
-          testbox(2,0), testbox(2,1));
-
-  for (int i = 0; i < tNtot; ++i){
-    map_id_uc( i, tucAtom, testbox, tNb);
-    printf( "\n%i --> %i %i %i %i", i, tucAtom(0), tucAtom(1), tucAtom(2), tucAtom(3));
-  }
-  std::cout << std::endl;
-  **/
+    Eigen::Matrix<float, 3, 4> boxFull;
+    boxFull.block<3,2>(0,0) = 0.5 * (boxMat.block<3,2>(0,0) + boxMat1.block<3,2>(0,0));
+    boxFull.block<3,1>(0,2) = boxMat.block<3,1>(0,2) + boxMat1.block<3,1>(0,2);
+    boxFull.block<3,1>(0,3) = boxMat.block<3,1>(0,3);
+    enki::wrap_atoms_box(atomsFull, boxFull);
+    tmp = write_lammps_data_file (fpp, atomsFull, boxFull );
+    printf ( "    done writing %i atoms to zr.data\n", tmp);
+    }
 
   return 0;
 

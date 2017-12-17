@@ -1,20 +1,26 @@
 #ifndef CRYSTAL_H
 #define CRYSTAL_H
 
-#include "Eigen/Dense"
 #include "unitcell.h"
+#include "atom.h"
+#include <vector>
+#include "Eigen/Dense"
+#include "Eigen/StdVector"
 
 class Crystal{
 
  public:
 
   Crystal();
-  Crystal(int, Eigen::Matrix<int, 2, 3>& tiles, UnitCell& uc);
+  Crystal(int, const Eigen::Matrix<float, 3, 2>& , UnitCell* );
 
-  double lx(int ) const;
+  int build(std::vector<Atom>&) const;
+  void print_me() const;
+  int number_of_atoms() const;
 
-  UnitCell unitCell;
-  Eigen::Matrix<int, 2, 3> tiles;
+  UnitCell* uc;
+  Eigen::Matrix<float, 3, 2> tiles;
+  int _id;
 };
 
 #endif

@@ -12,10 +12,10 @@ class Atom{
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   Atom();
-  Atom( int, Vector4i&, Vector3f&);
+  Atom( int, const Vector3f& vscaled, const Vector3f& vreal);
 
   int _id;
-  Vector4i ucc;
+  Vector3f ucc;
   Vector3f coords;
 
 };
