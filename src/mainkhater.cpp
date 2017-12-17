@@ -176,6 +176,13 @@ int create_screw_xz( const UnitCell& cell,
 
 }
 
+int create_sia_loop ( const UnitCell& cell, const Eigen::Matrix<float,3,2>& tiles,
+                      const Eigen::Matrix<float,3,2>& loop, const Eigen::Matrix<float,3,2>& loopTiles,
+                      std::vector<Atom>& atoms){
+
+
+}
+
 int main(int argc, char** argv){
 
   if (argc < 7){ //ensure that 6 number are given -- they will be cast as integers
