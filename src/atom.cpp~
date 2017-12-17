@@ -1,0 +1,12 @@
+#include "atom.h"
+#include "Eigen/Dense"
+
+Atom::Atom() {
+
+  Atom::_id = -1;
+  Atom::coords << 0., 0., 0.;
+  Atom::ucc << 0, 0, 0, 0;
+
+}
+
+Atom::Atom(

@@ -75,6 +75,64 @@ void enki::transform (const UnitCell& old, Eigen::Matrix3f& miller, UnitCell& sh
   shiny.basis.resize(3, uniqueAtomsShiny.size());
   for (int i = 0; i < uniqueAtomsShiny.size(); ++i){
     shiny.basis.block<3,1>(0,i) << uniqueAtomsShiny[i];
+
   }
 
+}
+
+
+void enki::get_box_vectors (const UnitCell &cell,
+                            const Eigen::Matrix<float,3,2>& tiles,
+                            Eigen::Matrix<float, 3, 4> &boxMatrix){
+
+  /* cast to float */
+  //Eigen::Matrix<float,3,2> tiles = tilings.cast<float>();
+  /* The origin */
+  boxMatrix.block<3,1>(0,3) << cell.ucv * tiles.block<3,1>(0,0);
+
+  /* The scale up matrix is a diagonal matrix made from the repeat integers */
+  Eigen::Matrix3f scaleUp = Eigen::Matrix3f::Identity();
+  for (int i = 0; i < 3; ++i){
+    scaleUp(i,i) =  tiles(i,1) - tiles(i,0);
+  }
+  /*
+   The column vectors are now the box vectors.
+   Note that this may not be aligned with the x-axis depending on the unit cell
+   To make it LAMMPS compatible i.e. Upper Triangular the unit cell must be rotated
+  */
+  boxMatrix.block<3,3>(0,0) = cell.ucv * scaleUp;
+
+}
+
+/**
+   Rotates a unit cells' vectors so that [a1] is aligned with <x>
+**/
+void jallisa (UnitCell& cell){
+  Eigen::PartialPivLU<Eigen::Matrix3f> luCell( cell.ucv );
+  cell.ucv = luCell.matrixLU().triangularView<Eigen::Upper>();
+}
+
+/**
+   wrap atoms outside the box
+**/
+void enki::wrap_atoms_box(std::vector<Atom>& atoms,
+                          const Eigen::Matrix<float, 3, 4> &box){
+  // calculate the box vectors
+
+  Eigen::Matrix3f T = box.block<3,3>(0,0); //transformation matrix
+  Eigen::Matrix3f invT = T.inverse();
+
+  Eigen::Vector3f origin = box.block<3,1>(0,3);
+
+  Eigen::Vector3f rAtom;
+  for (int i = 0; i < atoms.size(); ++i){
+    rAtom = atoms[i].coords - origin; // calculate distance from origin (llc)
+    rAtom = invT * rAtom; // 0 <= rAtom(i) < 1 // transform to box space
+    for (int j = 0; j < 3; ++j){
+      rAtom(j) -= floor(rAtom(j));  // return to central image
+    }
+    rAtom = T * rAtom; // return to standard space and shift
+    rAtom = rAtom + origin;
+    atoms[i].coords = rAtom;
+  }
 }

@@ -1,0 +1,14 @@
+#ifndef CRYSTAL_H
+#define CRYSTAL_H
+
+#include "Eigen/Dense"
+
+class Crystal{
+
+ public:
+
+  Crystal();
+  Crystal(int
+}
+
+#endif
