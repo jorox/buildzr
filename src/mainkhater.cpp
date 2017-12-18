@@ -176,10 +176,78 @@ int create_screw_xz( const UnitCell& cell,
 
 }
 
-int create_sia_loop ( const UnitCell& cell, const Eigen::Matrix<float,3,2>& tiles,
-                      const Eigen::Matrix<float,3,2>& loop, const Eigen::Matrix<float,3,2>& loopTiles,
-                      std::vector<Atom>& atoms){
+/**
+   Create a SIA loop by adding atoms to the list of atoms.
+   @cell is the unit cell used to create the crystal
+   @tiles is the number of tilings of the unit cell
+   @loopMiller 3x2 matrix representing the smallest element of the loop. Normally these will be integers
+   @loopTiles a 2x2 matrix defnining how many tiles of the loop to create. These are in loop-space
+   @siaV a vector representing the intersitial atom direction in loop-space
+   @atoms the vector of append to
+ **/
 
+int create_sia_loop ( const UnitCell& cell,
+                      const Eigen::Matrix<float,3,2>& tiles,
+                      const Eigen::Matrix<float,3,3>& loopMiller,
+                      const Eigen::Matrix<float,3,2>& loopTiles,
+                      const Eigen::Vector3f& sia,
+                      std::vector<Atom>& atoms,
+                      Eigen::Matrix<float,3,4>& box ){
+
+  // First we need to find the unit cell of the loop
+  UnitCell loopCell;
+  // loop contains the vectors (and base atoms) of the loop in real-space
+  enki::transform(cell, loopMiller, loopCell);
+  float eps = 0.001;
+
+  std::cout << "ddd new loopCell = " << std::endl;
+  loopCell.print_me();
+
+  for (int i = 0; i < loopCell.number_of_atoms(); ++i){
+    loopCell.basis.block<3,1>(0,i) = loopCell.basis.block<3,1>(0,i) + (eps * sia);
+  }
+
+  std::cout << "ddd new loopCell = " << std::endl;
+  loopCell.print_me();
+
+  // ensure that at least one of the tilings has a length of 1
+  /*
+  bool isLoop = false;
+  for (int i = 0; i < 3; ++i){
+    if ( loopTiles(i,1) - loopTiles(i,0) < 1.01 ) { isLoop = true;}
+  }
+  if (false == isLoop) {
+    std::cout << "ERROR: Cannot create loop. Must have one side length equal to 1" << std::cout;
+    return 0;
+  }
+  */
+  std::cout << "ddd loopTIles = " << std::endl << loopTiles << std::endl;
+  Crystal loop(-1, loopTiles, &loopCell);
+  int nLoopAtoms = loop.build(atoms);
+  enki::get_box_vectors (loopCell, loopTiles, box);
+
+  // Now loop over all atoms and find inside the loop
+  /*
+  int nLoopAtoms = 0;
+  int oldN = atoms.size();
+  Eigen::Matrix3f invLoop = loop.block<3,3>(0,0).inverse();
+  Eigen::Vector3f scAtom, rAtom;
+
+  for (int ia = 0; ia < oldN ; ++ia){
+    scAtom = invLoop * atoms[ia].coords; // calculate coorindates in crystal-space
+    scAtom = scAtom - loop.block<3,1>(0,3); // shift to loop origin
+    std::cout << "ddd test atom = " << scAtom.transpose() << std::endl;
+    for (int ix = 0; ix < 3; ++ix){ if (abs(scAtom(ix)) > 0){ continue; } }
+    std::cout << "ddd loop atom = " << scAtom.transpose() << std::endl;
+    scAtom = scAtom + loop.block<3,1>(0,3); // shift back to position
+    scAtom = scAtom + (eps * sia); // add a small shift SIA
+    rAtom = loop.block<3,3>(0,0) * scAtom; // calculate coordinates in real space
+    atoms.push_back(Atom(oldN + nLoopAtoms, scAtom, rAtom)); // add SIA
+    nLoopAtoms++;
+  }
+  */
+
+  return nLoopAtoms;
 
 }
 
@@ -231,7 +299,6 @@ int main(int argc, char** argv){
 
   for (int i = 0; i < 6; ++i){ Nx((int)i/2, i%2) = std::atof (argv[i+1]); }
 
-
   if (argc == 7){
     // print information on the box
     printf ( "... using repeats: \n     X = [%1.0f %1.0f]\n     Y = [%1.0f %1.0f]\n     Z = [%1.0f %1.0f]\n",
@@ -249,7 +316,7 @@ int main(int argc, char** argv){
     printf( "    crystal built successfully\n");
     printf ( "+++ Box (Angstrom) [h1|h2|h2|origin]:\n");
     std::cout << boxMat << std::endl;
-    printf ( "+++  %i atoms", Natoms);
+    printf ( "+++  %i atoms\n", Natoms);
 
     std::FILE * fp;
     fp = fopen ( "zr.data", "w");
@@ -262,16 +329,51 @@ int main(int argc, char** argv){
     Eigen::Matrix<float,3,4> boxMat1;
     std::vector<Atom> atoms1;
     int tmp;
+    int dcase = -1;
     if (strcmp(argv[7],"e") == 0){
       tmp = create_edge_xz (zrstd_uc, Nx, atoms, boxMat, atoms1, boxMat1 );
       printf ( "+++ created edge dislocation with b=x, n=z, %i atoms \n", tmp);
+    dcase = 1;
     }
     else{
-      tmp = create_screw_xz(zrstd_uc, Nx, atoms, boxMat, atoms1, boxMat1);
-      std::cout << "ddd boxMat=\n" << boxMat << std::endl;
-      std::cout << "ddd boxMat1=\n" << boxMat1 << std::endl;
-      printf ( "+++ created screw dislocation with b=x, n=z,\n");
-      printf ( "    %i atoms:\n", tmp);
+      if ( strcmp(argv[7], "s") == 0 ){
+        tmp = create_screw_xz(zrstd_uc, Nx, atoms, boxMat, atoms1, boxMat1);
+        std::cout << "ddd boxMat=\n" << boxMat << std::endl;
+        std::cout << "ddd boxMat1=\n" << boxMat1 << std::endl;
+        printf ( "+++ created screw dislocation with b=x, n=z,\n");
+        printf ( "    %i atoms:\n", tmp);
+        dcase = 2;
+      }
+
+      else{
+        if (strcmp(argv[7], "l") == 0 ) {
+          printf ( "... building perfect crystal\n");
+          int Natoms = create_perfect(zrstd_uc, Nx, atoms, boxMat);
+          printf( "    crystal built successfully\n");
+          printf ( "+++ Box (Angstrom) [h1|h2|h2|origin]:\n");
+          std::cout << boxMat << std::endl;
+          printf ( "+++  %i atoms\n", Natoms);
+
+
+          Eigen::Matrix<float,3,2> loopTiles;
+          for (int i = 0; i < 6; ++i){ loopTiles(i/2, i%2) = atof(argv[i+8]); }
+          Eigen::Matrix<float,3,3> loopMiller;
+          //loopMiller = Eigen::Matrix3f::Identity(); // 11-20 loop
+          loopMiller << 0.5, 0.0, -1.5,
+            0.0, 1.0, 0.0,
+            0.5, 0.0, 0.5;
+          Eigen::Vector3f bLoop;
+          bLoop << 1.0, 0.0, 0.0; // crystal coordinates
+          tmp = create_sia_loop ( zrstd_uc, Nx,
+                                  loopMiller,
+                                  loopTiles,
+                                  bLoop,
+                                  atoms1, boxMat1);
+          printf ("... created SIA loop with %i atoms\n", tmp);
+          dcase = 3;
+
+        }
+      }
     }
 
     std::FILE * fp;
@@ -291,13 +393,18 @@ int main(int argc, char** argv){
     atomsFull.insert(atomsFull.end(), atoms1.begin(), atoms1.end());
 
     Eigen::Matrix<float, 3, 4> boxFull;
-    boxFull.block<3,2>(0,0) = 0.5 * (boxMat.block<3,2>(0,0) + boxMat1.block<3,2>(0,0));
-    boxFull.block<3,1>(0,2) = boxMat.block<3,1>(0,2) + boxMat1.block<3,1>(0,2);
-    boxFull.block<3,1>(0,3) = boxMat.block<3,1>(0,3);
+    if (dcase < 3){
+      boxFull.block<3,2>(0,0) = 0.5 * (boxMat.block<3,2>(0,0) + boxMat1.block<3,2>(0,0));
+      boxFull.block<3,1>(0,2) = boxMat.block<3,1>(0,2) + boxMat1.block<3,1>(0,2);
+      boxFull.block<3,1>(0,3) = boxMat.block<3,1>(0,3);
+    }
+    else{
+      boxFull = boxMat;
+    }
     enki::wrap_atoms_box(atomsFull, boxFull);
     tmp = write_lammps_data_file (fpp, atomsFull, boxFull );
     printf ( "    done writing %i atoms to zr.data\n", tmp);
-    }
+  }
 
   return 0;
 

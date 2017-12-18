@@ -16,7 +16,7 @@ bool enki::mysearch(std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen:
   return false;
 }
 
-void enki::transform (const UnitCell& old, Eigen::Matrix3f& miller, UnitCell& shiny){
+void enki::transform (const UnitCell& old, const Eigen::Matrix3f& miller, UnitCell& shiny){
   std::cout << "... ENKI: changing unit cell, ";
 
   // calculate the miller vectors in the standard basis
@@ -49,11 +49,12 @@ void enki::transform (const UnitCell& old, Eigen::Matrix3f& miller, UnitCell& sh
   // transform atoms from standard basis to new-basis (fractional coordinates)
   std::vector<Eigen::Vector3f,Eigen::aligned_allocator<Eigen::Vector3f> > atomsShiny;
   Eigen::Vector3f dummy;
+
   for ( int i = 0; i < atomsOld.size(); ++i ){
     dummy = shiny.ucv.inverse() * atomsOld[i];
     for (int j = 0; j < 3; ++j){
-      if (fabs(dummy(j)) < 0.00001){dummy(j) = 0.0;} //set any number less that 1e-5 to zero
-      dummy(j) -= floor(dummy(j)); // return to central image
+      dummy(j) -= floor(dummy(j)+_EPS_); // return to central image
+      if (fabs(dummy(j)) < 0.0001){dummy(j) = 0.0;} //set any number less that 1e-5 to zero
     }
     atomsShiny.push_back(dummy);
   }
