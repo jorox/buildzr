@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <vector>
 #include "Eigen/StdVector"
+#include "crystal.h"
 
 int enki::ratio_of_atoms( const UnitCell& old, const UnitCell& shiny){
   return floor( shiny.volume() / old.volume() );
@@ -191,8 +192,17 @@ int enki::create_edge_xz(const UnitCell& cell,
   // Atoms and boxes
   int N1 = mu.build(atoms1);
   int N2 = lambda.build(atoms2);
+
   enki::get_box_vectors(ucMu, Nmu, box1);
   enki::get_box_vectors(ucLambda, Nlambda, box2);
+
+  std::FILE * fpMu;
+  std::FILE * fpLm;
+  fpMu = fopen ("atomsMu.data", "w");
+  fpLm = fopen ("atomsLm.data", "w");
+
+  enki::write_lammps_data_file(fpMu, atoms1, box1);
+  enki::write_lammps_data_file(fpLm, atoms2, box2);
 
   return N1+N2;
 
@@ -241,7 +251,15 @@ int enki::create_screw_xz( const UnitCell& cell,
   enki::get_box_vectors(muUC, Nmu, box1);
   enki::get_box_vectors(lambdaUC, Nlambda, box2);
 
-  box2(0,1) = box1(0,1);
+  std::FILE * fpMu;
+  std::FILE * fpLm;
+  fpMu = fopen ("atomsMu.data", "w");
+  fpLm = fopen ("atomsLm.data", "w");
+
+  enki::write_lammps_data_file(fpMu, atoms1, box1);
+  enki::write_lammps_data_file(fpLm, atoms2, box2);
+
+  box2(0,1) = box1(0,1); // create the same shear so that joining the boxes by averaging will not yield zero
 
   return N1+N2;
 

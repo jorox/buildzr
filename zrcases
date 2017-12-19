@@ -1,0 +1,11 @@
+#!/bin/bash
+./buildzr 0 130 0 7 0 80 Zrp E
+mv atoms.data zrpe.data
+./buildzr 0 130 0 7 0 80 Zrb E
+mv atoms.data zrbe.data
+./buildzr 0 7 0 82 0 76 Zrp S
+mv atoms.data zrps.data
+./buildzr 0 7 0 76 82 Zrb S
+mv atoms.data zrbs.data
+./buildzr 0 100 0 100 0 48 Zrp E 95 96 47 53 19 24
+mv atoms.data sb3a.data

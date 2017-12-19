@@ -59,23 +59,21 @@ namespace enki{
      \attention The method should work for non-orthogonal unit cells, but has not been tested
      \todo Test the method with non-orthogonal unit cell
   **/
-  int create_edge_xz(const UnitCell& cell,
+int create_edge_xz(const UnitCell& cell,
                      const Eigen::Matrix<float,3,2>& Ntiles,
                      std::vector<Atom>& atoms1,
                      Eigen::Matrix<float,3,4>& box1,
                      std::vector<Atom>& atoms2,
-                     Eigen::Matrix<float,3,4>& box2)
+                   Eigen::Matrix<float,3,4>& box2);
 
-};
-
-create_screw_xz( const UnitCell& cell,
+int create_screw_xz( const UnitCell& cell,
                  const Eigen::Matrix<float,3,2>& Nx,
                  std::vector<Atom>& atoms1,
                  Eigen::Matrix<float,3,4>& box1,
                  std::vector<Atom>& atoms2,
                  Eigen::Matrix<float,3,4>& box2);
 
-create_sia_loop ( const UnitCell& cell,
+int create_sia_loop ( const UnitCell& cell,
                   const Eigen::Matrix<float,3,2>& tiles,
                   const Eigen::Matrix<float,3,3>& loopMiller,
                   const Eigen::Matrix<float,3,2>& loopTiles,
@@ -83,8 +81,10 @@ create_sia_loop ( const UnitCell& cell,
                   std::vector<Atom>& atoms,
                   Eigen::Matrix<float,3,4>& box );
 
-write_lammps_data_file ( std::FILE* fstream,
+int write_lammps_data_file ( std::FILE* fstream,
                          std::vector<Atom>& atomList,
                          Eigen::Matrix<float,3,4>& boxLims );
+
+};
 
 #endif
