@@ -205,19 +205,25 @@ int main(int argc, char** argv){
     BoxMatrix loopBox;
     AtomVector loopAtoms;
     Eigen::Matrix<float,3,3> loopMiller;
+    Eigen::Matrix<float,3,3> loopTyvC1; //Tarantyev reaction C1 in Phil Mag vol. 90 1019–1033
+
     loopMiller = Eigen::Matrix3f::Identity(); // 11-20 loop
+    loopTyvC1 << 2./3., 2./3., 2./3.,
+    -1./6., -1./6., 1./3.,
+    1./2., -1./2., 0.; 
     //loopMiller << 0.5, 0.0, -1.5,
     //  0.0, 1.0, 0.0,
     //  0.5, 0.0, 0.5;
     Eigen::Vector3f bLoop;
-    bLoop << 1.0, 0.0, 0.0; // crystal coordinates
+    bLoop << 1.0, 0.0, 0.0; // loop space
+
     printf ("... adding SIA loop with b=<x>\n");
     tmp = enki::create_sia_loop ( cell, Nx,
-                                      loopMiller,
+                                      loopTyvC1,
                                       Nloop,
                                       bLoop,
                                       loopAtoms, loopBox);
-    printf ("+++ created SIA loop with %i self-interstitial atoms\n", tmp);
+    printf ("+++ created SIA Tarantyev loop with %i self-interstitial atoms\n", tmp);
     printf ("    loop dimensions (box)\n");
     std::cout << loopBox << std::endl;
     atoms.insert(atoms.end(), loopAtoms.begin(), loopAtoms.end());

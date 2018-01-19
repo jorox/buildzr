@@ -6,7 +6,11 @@
 #include "crystal.h"
 
 int enki::ratio_of_atoms( const UnitCell& old, const UnitCell& shiny){
-  return floor( shiny.volume() / old.volume() );
+  double perAtomVol = old.number_of_atoms() / old.volume();
+  std::cout << std::endl << "old V = " << old.volume() << std::endl;
+  std::cout << "old N/V = " << perAtomVol << std::endl;
+  std::cout << "new V = " << shiny.volume() << std::endl;
+  return  perAtomVol * shiny.volume() ;
 }
 
 bool enki::mysearch(std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f> > &atoms,
@@ -26,10 +30,10 @@ void enki::transform (const UnitCell& old, const Eigen::Matrix3f& miller, UnitCe
   // make sure volume >= 1
   int roa = ratio_of_atoms( old, shiny);
   if (roa < 1){
-    std::cout << "Error enki::transform() Miller indices chosen do not represent a valid transformation" << std::endl;
+    std::cout << std::endl << "Error enki::transform() Miller indices chosen do not represent a valid transformation: roa = " << roa << std::endl;
   }
   else{
-    printf ( "expecting %i atoms in the new basis based on volume analysis\n", roa * old.number_of_atoms());
+    printf ( "expecting %i atoms in the new basis based on volume analysis\n", roa);
   }
 
   // determine the tiles needed to find atoms in new basis
@@ -71,7 +75,7 @@ void enki::transform (const UnitCell& old, const Eigen::Matrix3f& miller, UnitCe
   }
 
   // make sure you have the right number of atoms
-  if ( uniqueAtomsShiny.size() != roa * old.number_of_atoms() ){
+  if ( uniqueAtomsShiny.size() != roa){
     std::cout << "ENKI; ERROR - cannot find the expected number of atoms" << std::endl;
   }
   shiny.basis.resize(3, uniqueAtomsShiny.size());
