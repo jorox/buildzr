@@ -1,0 +1,6 @@
+# Zr unit cell with <c> axis along the Y-direction
+
+scale 3.232
+a1 1.0 0.0 0.0
+a2 0.0 1.598081683 0.0
+a3 0.0 0.0 1.732050808

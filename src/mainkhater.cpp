@@ -10,6 +10,7 @@
 #include "unitcell.h"
 #include "crystal.h"
 #include "enki.h"
+#include "haya.h"
 
 static constexpr double _PI_ = 3.1415926535897;
 typedef Eigen::Matrix<float,3,4> BoxMatrix;
@@ -219,11 +220,11 @@ int main(int argc, char** argv){
 
     printf ("... adding SIA loop with b=<x>\n");
     tmp = enki::create_sia_loop ( cell, Nx,
-                                      loopTyvC1,
+                                      loopMiller,
                                       Nloop,
                                       bLoop,
                                       loopAtoms, loopBox);
-    printf ("+++ created SIA Tarantyev loop with %i self-interstitial atoms\n", tmp);
+    printf ("+++ created SIA Miller loop with %i self-interstitial atoms\n", tmp);
     printf ("    loop dimensions (box)\n");
     std::cout << loopBox << std::endl;
     atoms.insert(atoms.end(), loopAtoms.begin(), loopAtoms.end());
