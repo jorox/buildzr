@@ -10,9 +10,11 @@ Atom::Atom() {
 }
 
 Atom::Atom( int id,
-            const Eigen::Vector3f& vscal,
-            const Eigen::Vector3f& vreal){
+            int typ,
+            const Eigen::Vector3d& vscal,
+            const Eigen::Vector3d& vreal){
 
+  this->_type = typ;
   this->_id = id;
   this->ucc = vscal;
   this->coords = vreal;

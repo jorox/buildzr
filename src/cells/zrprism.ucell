@@ -1,6 +1,11 @@
 # Zr unit cell with <c> axis along the Y-direction
-
+# a = 3.232, c = 5.165
+name zrprism
 scale 3.232
 a1 1.0 0.0 0.0
 a2 0.0 1.598081683 0.0
 a3 0.0 0.0 1.732050808
+basis 0.0, 0.0, 0.0
+basis 0.5, 0.5, 0.16666667
+basis 0.5, 0.0, 0.5
+basis 0.0, 0.5, 0.66666667

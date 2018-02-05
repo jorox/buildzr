@@ -1,27 +1,37 @@
 #include "enki.h"
+#include "atom.h"
+#include "crystal.h"
+#include "Eigen/StdVector"
 #include <iostream>
 #include <stdio.h>
 #include <vector>
-#include "Eigen/StdVector"
-#include "crystal.h"
 
 int enki::ratio_of_atoms( const UnitCell& old, const UnitCell& shiny){
   double perAtomVol = old.number_of_atoms() / old.volume();
-  std::cout << std::endl << "old V = " << old.volume() << std::endl;
-  std::cout << "old N/V = " << perAtomVol << std::endl;
-  std::cout << "new V = " << shiny.volume() << std::endl;
+  std::cout << std::endl << "    old V = " << old.volume() << std::endl;
+  std::cout << "    old N/V = " << perAtomVol << std::endl;
+  std::cout << "    new V = " << shiny.volume() << std::endl;
   return  perAtomVol * shiny.volume() ;
 }
 
-bool enki::mysearch(std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f> > &atoms,
-                    Eigen::Vector3f& v2){
+/*!
+  Return the tue if the coordinates specified belong to the vector
+  \param[in] v2 the coordinates specified
+  \param[in] atoms a vector of atoms
+ */
+bool enki::mysearch(const std::vector<Atom> &atoms,
+                    const Eigen::Vector3d& v2)
+{
   for (int i = 0; i < atoms.size(); ++i){
-    if ( (v2-atoms[i]).norm() < 5 * _EPS_ ){ return true; }
+    if ( (v2-atoms[i].ucc).norm() < 5 * _EPS_ ){ return true; }
   }
   return false;
 }
 
-void enki::transform (const UnitCell& old, const Eigen::Matrix3f& miller, UnitCell& shiny){
+void enki::transform (const UnitCell& old,
+                      const Eigen::Matrix3d& miller,
+                      UnitCell& shiny)
+{
   std::cout << "... ENKI: changing unit cell, ";
 
   // calculate the miller vectors in the standard basis
@@ -30,14 +40,17 @@ void enki::transform (const UnitCell& old, const Eigen::Matrix3f& miller, UnitCe
   // make sure volume >= 1
   int roa = ratio_of_atoms( old, shiny);
   if (roa < 1){
-    std::cout << std::endl << "Error enki::transform() Miller indices chosen do not represent a valid transformation: roa = " << roa << std::endl;
+    std::cout << std::endl << std::endl;
+    std::cout << "**************************************************************\n";
+    std::cout << "Error enki::transform() Miller indices chosen donot represent a valid transformation: roa = " << roa << std::endl;
+    std::cout << "**************************************************************\n\n";
   }
   else{
-    printf ( "expecting %i atoms in the new basis based on volume analysis\n", roa);
+    printf ( "    expecting %i atoms in the new basis based on volume analysis\n", roa);
   }
 
   // determine the tiles needed to find atoms in new basis
-  Eigen::Matrix<float, 3, 2> repeats;
+  Eigen::Matrix<double, 3, 2> repeats;
   //std::cout << miller.colwise().minCoeff().transpose() << std::endl;;
   repeats.block<3,1>(0,0) << miller.rowwise().minCoeff(); //choose the minimum h, k, l
   repeats.block<3,1>(0,1) << miller.rowwise().maxCoeff(); //choose the maximum h, k, l
@@ -47,57 +60,65 @@ void enki::transform (const UnitCell& old, const Eigen::Matrix3f& miller, UnitCe
   for (int i = 0; i < 3; ++i){ repeats(i,1) = ceil(repeats(i,1))+1.0; }
 
   // generate the atoms i.e. get coordinates in standard basis (Angstroms)
-  std::vector<Eigen::Vector3f,Eigen::aligned_allocator<Eigen::Vector3f>> atomsOld;
-  old.generate(repeats, atomsOld);
+  std::vector<Atom> atomsOld;
+  old.generate(repeats.cast<int>(), atomsOld);
   printf ( "    generated %i atoms using old basis\n", atomsOld.size() );
 
   // transform atoms from standard basis to new-basis (fractional coordinates)
-  std::vector<Eigen::Vector3f,Eigen::aligned_allocator<Eigen::Vector3f> > atomsShiny;
-  Eigen::Vector3f dummy;
+  std::vector<Atom> atomsShiny;
+  Eigen::Vector3d fracShinyCoords;
+  int type;
 
   for ( int i = 0; i < atomsOld.size(); ++i ){
-    dummy = shiny.ucv.inverse() * atomsOld[i];
+    fracShinyCoords = shiny.ucv.inverse() * atomsOld[i].coords; //change to coordinates in new basis
+    type = atomsOld[i]._type;
     for (int j = 0; j < 3; ++j){
-      dummy(j) -= floor(dummy(j)+_EPS_); // return to central image
-      if (fabs(dummy(j)) < 0.0001){dummy(j) = 0.0;} //set any number less that 1e-5 to zero
+      fracShinyCoords(j) -= floor(fracShinyCoords(j)+_EPS_); //return to central image
+      if (fabs(fracShinyCoords(j)) < 0.0001){fracShinyCoords(j) = 0.0;} //set any number less that 1e-5 to zero
     }
-    atomsShiny.push_back(dummy);
+    atomsShiny.push_back(Atom(atomsShiny.size()+1,
+                              type,
+                              fracShinyCoords,
+                              atomsOld[i].coords));
   }
 
   // check for duplicates
-  std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f> > uniqueAtomsShiny;
+  std::vector<Atom> uniqueAtomsShiny;
   for (int i = 0; i < atomsShiny.size(); ++i){
-    if ( !enki::mysearch(uniqueAtomsShiny, atomsShiny[i]) ){
-    //if (true){
+    if ( !enki::mysearch(uniqueAtomsShiny, atomsShiny[i].ucc) ){
       uniqueAtomsShiny.push_back(atomsShiny[i]);
-      std::cout << "    pushing 1 unique i = " << i << "  " << atomsShiny[i].transpose() << std::endl;
+      //std::cout << "    pushing 1 unique i = " << i << "  " << atomsShiny[i].ucc.transpose() << std::endl;
     }
   }
 
   // make sure you have the right number of atoms
   if ( uniqueAtomsShiny.size() != roa){
-    std::cout << "ENKI; ERROR - cannot find the expected number of atoms" << std::endl;
+    std::cout << "\n\n*************************************************************\n";
+    std::cout << "ENKI; ERROR - cannot find the expected number of atoms";
+    std::cout << "\n*************************************************************\n\n";
   }
   shiny.basis.resize(3, uniqueAtomsShiny.size());
+  shiny.types.clear();
   for (int i = 0; i < uniqueAtomsShiny.size(); ++i){
-    shiny.basis.block<3,1>(0,i) << uniqueAtomsShiny[i];
-
+    shiny.basis.block<3,1>(0,i) << uniqueAtomsShiny[i].ucc;
+    shiny.types.push_back(uniqueAtomsShiny[i]._type);
   }
+  std::cout << "    transformation successful, Enki be praised :)" << std::endl;
 
 }
 
 
 void enki::get_box_vectors (const UnitCell &cell,
-                            const Eigen::Matrix<float,3,2>& tiles,
-                            Eigen::Matrix<float, 3, 4> &boxMatrix){
+                            const Eigen::Matrix<int,3,2>& tiles,
+                            Eigen::Matrix<double, 3, 4> &boxMatrix){
 
-  /* cast to float */
-  //Eigen::Matrix<float,3,2> tiles = tilings.cast<float>();
+  /* cast to double */
+  //Eigen::Matrix<double,3,2> tiles = tilings.cast<double>();
   /* The origin */
-  boxMatrix.block<3,1>(0,3) << cell.ucv * tiles.block<3,1>(0,0);
+  boxMatrix.block<3,1>(0,3) << cell.ucv * tiles.block<3,1>(0,0).cast<double>();
 
   /* The scale up matrix is a diagonal matrix made from the repeat integers */
-  Eigen::Matrix3f scaleUp = Eigen::Matrix3f::Identity();
+  Eigen::Matrix3d scaleUp = Eigen::Matrix3d::Identity();
   for (int i = 0; i < 3; ++i){
     scaleUp(i,i) =  tiles(i,1) - tiles(i,0);
   }
@@ -114,7 +135,7 @@ void enki::get_box_vectors (const UnitCell &cell,
    Rotates a unit cells' vectors so that [a1] is aligned with <x>
 **/
 void jallisa (UnitCell& cell){
-  Eigen::PartialPivLU<Eigen::Matrix3f> luCell( cell.ucv );
+  Eigen::PartialPivLU<Eigen::Matrix3d> luCell( cell.ucv );
   cell.ucv = luCell.matrixLU().triangularView<Eigen::Upper>();
 }
 
@@ -122,15 +143,15 @@ void jallisa (UnitCell& cell){
    wrap atoms outside the box
 **/
 void enki::wrap_atoms_box(std::vector<Atom>& atoms,
-                          const Eigen::Matrix<float, 3, 4> &box){
+                          const Eigen::Matrix<double, 3, 4> &box){
   // calculate the box vectors
 
-  Eigen::Matrix3f T = box.block<3,3>(0,0); //transformation matrix
-  Eigen::Matrix3f invT = T.inverse();
+  Eigen::Matrix3d T = box.block<3,3>(0,0); //transformation matrix
+  Eigen::Matrix3d invT = T.inverse();
 
-  Eigen::Vector3f origin = box.block<3,1>(0,3);
+  Eigen::Vector3d origin = box.block<3,1>(0,3);
 
-  Eigen::Vector3f rAtom;
+  Eigen::Vector3d rAtom;
   for (int i = 0; i < atoms.size(); ++i){
     rAtom = atoms[i].coords - origin; // calculate distance from origin (llc)
     rAtom = invT * rAtom; // 0 <= rAtom(i) < 1 // transform to box space
@@ -144,9 +165,9 @@ void enki::wrap_atoms_box(std::vector<Atom>& atoms,
 }
 
 int enki::create_perfect( const UnitCell& cell,
-                    const Eigen::Matrix<float,3,2>& Nx,
-                    std::vector<Atom>& atoms,
-                    Eigen::Matrix<float,3,4>& box){
+                          const Eigen::Matrix<int,3,2>& Nx,
+                          std::vector<Atom>& atoms,
+                          Eigen::Matrix<double,3,4>& box){
 
   UnitCell cell0(cell); // create a temporary unit cell
   Crystal xtal(0, Nx, &cell0);
@@ -157,17 +178,17 @@ int enki::create_perfect( const UnitCell& cell,
 }
 
 int enki::create_edge_xz(const UnitCell& cell,
-                   const Eigen::Matrix<float,3,2>& Ntiles,
-                   std::vector<Atom>& atoms1,
-                   Eigen::Matrix<float,3,4>& box1,
-                   std::vector<Atom>& atoms2,
-                   Eigen::Matrix<float,3,4>& box2){
+                         const Eigen::Matrix<int,3,2>& Ntiles,
+                         std::vector<Atom>& atoms1,
+                         Eigen::Matrix<double,3,4>& box1,
+                         std::vector<Atom>& atoms2,
+                         Eigen::Matrix<double,3,4>& box2){
 
   //
   int Nx = Ntiles(0,1) - Ntiles(0,0);
   int Ny = Ntiles(1,1) - Ntiles(1,0);
   int Nz = Ntiles(2,1) - Ntiles(2,0);
-  float b = cell.ucv.block<3, 1>(0, 0).norm();
+  double b = cell.ucv.block<3, 1>(0, 0).norm();
 
   // find the mid-plane along the Z-direction
   int midz = Ntiles(2,1) + Ntiles(2,0);
@@ -183,8 +204,8 @@ int enki::create_edge_xz(const UnitCell& cell,
   ucMu.ucv(0,0) += 0.5*b/Nx;
 
   // Repeats
-  Eigen::Matrix<float,3,2> Nlambda = Ntiles;
-  Eigen::Matrix<float,3,2> Nmu = Ntiles;
+  Eigen::Matrix<int,3,2> Nlambda = Ntiles;
+  Eigen::Matrix<int,3,2> Nmu = Ntiles;
   Nmu(0,1)--;
   Nmu(2,1) = midz;
   Nlambda(2,0) = midz;
@@ -200,6 +221,13 @@ int enki::create_edge_xz(const UnitCell& cell,
   enki::get_box_vectors(ucMu, Nmu, box1);
   enki::get_box_vectors(ucLambda, Nlambda, box2);
 
+  //std::cout << "DEBUG: box1 = " << std::endl << box1 << std::endl;
+  //std::cout << "DEBUG: box2 = " << std::endl << box2 << std::endl;
+
+  // Shift atoms and boxes to conincide (needed for negative tiles)
+  box2(0, 3) -= 0.5*b;
+  for (int i=0; i < atoms2.size(); ++i){ atoms2[i].coords(0) -= 0.5*b; }
+
   std::FILE * fpMu;
   std::FILE * fpLm;
   fpMu = fopen ("atomsMu.data", "w");
@@ -213,18 +241,18 @@ int enki::create_edge_xz(const UnitCell& cell,
 }
 
 int enki::create_screw_xz( const UnitCell& cell,
-                     const Eigen::Matrix<float,3,2>& Nx,
-                     std::vector<Atom>& atoms1,
-                     Eigen::Matrix<float,3,4>& box1,
-                     std::vector<Atom>& atoms2,
-                     Eigen::Matrix<float,3,4>& box2){
+                           const Eigen::Matrix<int,3,2>& Nx,
+                           std::vector<Atom>& atoms1,
+                           Eigen::Matrix<double,3,4>& box1,
+                           std::vector<Atom>& atoms2,
+                           Eigen::Matrix<double,3,4>& box2){
 
-  float b = cell.ucv.block<3,1>(0,0).norm();
-  float dy = cell.ucv.block<3,1>(0,1).norm();
-  float Ny = Nx(1,1) - Nx(1,0);
-  float Nz = Nx(2,1) - Nx(2,0);
+  double b = cell.ucv.block<3,1>(0,0).norm();
+  double dy = cell.ucv.block<3,1>(0,1).norm();
+  int Ny = Nx(1,1) - Nx(1,0);
+  int Nz = Nx(2,1) - Nx(2,0);
 
-  Eigen::Matrix3f ucShift;
+  Eigen::Matrix3d ucShift;
   ucShift << 0., -0.5*b/Ny, 0.,
     0., 0., 0.,
     0., 0., 0.;
@@ -238,8 +266,8 @@ int enki::create_screw_xz( const UnitCell& cell,
   //std::cout << "ddd mu_uc=\n" << muUC.ucv << std::endl;
   //std::cout << "ddd uc=\n" << cell.ucv << std::endl;
 
-  Eigen::Matrix<float,3,2> Nlambda = Nx;
-  Eigen::Matrix<float,3,2> Nmu = Nx;
+  Eigen::Matrix<int,3,2> Nlambda = Nx;
+  Eigen::Matrix<int,3,2> Nmu = Nx;
   Nmu(2,1) = Nmu(2,0) + (int)Nz/2;
   Nlambda(2,0) = Nmu(2,1);
 
@@ -281,27 +309,23 @@ int enki::create_screw_xz( const UnitCell& cell,
  **/
 
 int enki::create_sia_loop ( const UnitCell& cell,
-                      const Eigen::Matrix<float,3,2>& tiles,
-                      const Eigen::Matrix<float,3,3>& loopMiller,
-                      const Eigen::Matrix<float,3,2>& loopTiles,
-                      const Eigen::Vector3f& sia,
-                      std::vector<Atom>& atoms,
-                      Eigen::Matrix<float,3,4>& box ){
+                            const Eigen::Matrix<double,3,3>& loopMiller,
+                            const Eigen::Matrix<int,3,2>& loopTiles,
+                            const Eigen::Vector3d& sia,
+                            std::vector<Atom>& atoms,
+                            Eigen::Matrix<double,3,4>& box ){
 
   // First we need to find the unit cell of the loop
   UnitCell loopCell;
   // loop contains the vectors (and base atoms) of the loop in real-space
   enki::transform(cell, loopMiller, loopCell);
-  float eps = 0.001;
-
-  std::cout << "ddd new loopCell = " << std::endl;
-  loopCell.print_me();
-
+  double eps = 0.001;
+  loopCell.name = "sia loop";
   for (int i = 0; i < loopCell.number_of_atoms(); ++i){
     loopCell.basis.block<3,1>(0,i) = loopCell.basis.block<3,1>(0,i) + (eps * sia);
   }
-
-  std::cout << "ddd new loopCell = " << std::endl;
+  std::cout << "... ENKI: creating SIA loop:\n";
+  std::cout << "    unit cell of sia loop = " << std::endl;
   loopCell.print_me();
 
   // ensure that at least one of the tilings has a length of 1
@@ -315,7 +339,7 @@ int enki::create_sia_loop ( const UnitCell& cell,
     return 0;
   }
   */
-  std::cout << "ddd loopTIles = " << std::endl << loopTiles << std::endl;
+  std::cout << "    using loop tiles = " << std::endl << loopTiles << std::endl;
   Crystal loop(-1, loopTiles, &loopCell);
   int nLoopAtoms = loop.build(atoms);
   enki::get_box_vectors (loopCell, loopTiles, box);
@@ -324,8 +348,8 @@ int enki::create_sia_loop ( const UnitCell& cell,
   /*
   int nLoopAtoms = 0;
   int oldN = atoms.size();
-  Eigen::Matrix3f invLoop = loop.block<3,3>(0,0).inverse();
-  Eigen::Vector3f scAtom, rAtom;
+  Eigen::Matrix3d invLoop = loop.block<3,3>(0,0).inverse();
+  Eigen::Vector3d scAtom, rAtom;
 
   for (int ia = 0; ia < oldN ; ++ia){
     scAtom = invLoop * atoms[ia].coords; // calculate coorindates in crystal-space
@@ -351,7 +375,7 @@ int enki::create_sia_loop ( const UnitCell& cell,
  **/
 int enki::write_lammps_data_file( std::FILE* fstream,
                             std::vector<Atom>& atomList,
-                            Eigen::Matrix<float,3,4>& boxLims ){
+                            Eigen::Matrix<double,3,4>& boxLims ){
 
   // count number of valid atoms
   int natoms = atomList.size();

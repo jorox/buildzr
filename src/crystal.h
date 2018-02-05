@@ -12,14 +12,14 @@ class Crystal{
  public:
 
   Crystal();
-  Crystal(int, const Eigen::Matrix<float, 3, 2>& , UnitCell* );
+  Crystal(int, const Eigen::Matrix<int, 3, 2>& , UnitCell* );
 
   int build(std::vector<Atom>&) const;
   void print_me() const;
   int number_of_atoms() const;
 
   UnitCell* uc;
-  Eigen::Matrix<float, 3, 2> tiles;
+  Eigen::Matrix<int, 3, 2> tiles;
   int _id;
 };
 

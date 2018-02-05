@@ -1,8 +1,25 @@
+/*!
+  \file mainkhater.h
+  \brief File containing the main function.
+
+  The file creates a UnitCell, a 3x4 Matrix box, and a vector of atoms.
+  The function uses haya namesapce for parsing and enki for creating crystals
+
+  \var typedef Eigen::Matrix<double,3,4> BoxMatrix
+  \brief A type definition for a 3D box.
+
+  \var typedef std::vector<Atom> AtomVector
+  \brief A type definition for a vector of atoms
+ */
+
 #include <iostream>
 #include <cmath>
 #include <vector>
 #include <cstdio>
 #include <stdlib.h>
+#include <stdio.h>
+#include <fstream>
+
 #include "Eigen/Core"
 #include "Eigen/Dense"
 #include "Eigen/StdVector"
@@ -13,16 +30,29 @@
 #include "haya.h"
 
 static constexpr double _PI_ = 3.1415926535897;
-typedef Eigen::Matrix<float,3,4> BoxMatrix;
+typedef Eigen::Matrix<double,3,4> BoxMatrix;
 typedef std::vector<Atom> AtomVector;
 
+/*!
+ * \brief A function that joins two BoxMatrix along the Z-axis and concatenates two atom vectors
+ * \param atomsM the first atoms vector
+ * \param boxM the lower box (Mu)
+ * \param atomsL the second atoms vector
+ * \param boxL the upper box (Lambda)
+ * \param atomsFull the joined atoms vector
+ * \param boxFull the joined box
+ * \todo
+ *   Generalize the function to join along any direction
+ *   Verify that the two boxes have the same origin
+ *   Move the function to enki namespace
+ */
 void join (const AtomVector& atomsM,
-           const BoxMatrix& boxM,
-           const AtomVector& atomsL,
-           const BoxMatrix& boxL,
-           AtomVector& atomsFull,
-           BoxMatrix& boxFull){
-
+             const BoxMatrix& boxM,
+             const AtomVector& atomsL,
+             const BoxMatrix& boxL,
+             AtomVector& atomsFull,
+             BoxMatrix& boxFull)
+{
   // first join the atom lists
   atomsFull.reserve(atomsM.size()+atomsL.size());
   atomsFull.insert(atomsFull.end(), atomsM.begin(), atomsM.end());
@@ -33,201 +63,138 @@ void join (const AtomVector& atomsM,
   boxFull.block<3,1>(0,2) = boxM.block<3,1>(0,2) + boxL.block<3,1>(0,2); // the Z-axis
   boxFull.block<3,1>(0,3) = boxM.block<3,1>(0,3); // the origin = lower box
 }
+/*!
+ * \brief Store 6-elements from a vector to a 3x2 matrix
+ * This is used when reading the limits of a crystal from
+ * \see haya::process_line()
+ * \param vec is a vector that should contain 6 elements
+ * \param mat the matrix to store the 6 values
+ * \todo
+ *   Make sure that the vector contains at least 6 elements
+ */
+void vec2mat (const std::vector<int> &vec, Eigen::Matrix<int, 3,2> &mat)
+{
+  mat << vec[0], vec[1], vec[2], vec[3], vec[4], vec[5];
+}
 
+int main(int argc, char** argv)
+{
 
-
-int main(int argc, char** argv){
-
-  if (argc < 9){ //ensure that 6 number are given -- they will be cast as integers
-    std::cout << "ERROR: must supply at least 6 integers and 2 chars to determine box limits" << std::endl;
-    return 1;
+  if (argc < 2){ //ensure that 6 number are given -- they will be cast as integers
+  std::cout << "ERROR: must supply an input file" << std::endl;
+  return 1;
   }
 
-  double _ALAT = 3.23; // Angstrom
-  double _CLAT = 5.165;
+  // program capabilities
+  std::vector<std::string> xtalTypes;
+  std::vector<int> params;
+  xtalTypes.push_back("perfect");
+  xtalTypes.push_back("edge");
+  xtalTypes.push_back("screw");
+  xtalTypes.push_back("sia");
 
-  //  Zirconium unit cell
-  //  X = 1/3[11-20]
-  //  Y = [0001]
-  //  Z = [-1100]
-  //  We have 4 basis atoms in this unit cell i.e. it is not the primitive; however, it is orthogonal
+  // main containers
+  UnitCell cell0;
+  AtomVector atoms;
+  BoxMatrix box;
 
-  Eigen::Matrix3f zrstd_b_vec;
-  Eigen::Matrix<float,3,Eigen::Dynamic> zrstd_b_motif(3,4);
-  Eigen::Matrix3f zrstd_p_vec;
-  Eigen::Matrix<float,3,Eigen::Dynamic> zrstd_p_motif(3,4);
+  std::ifstream ifs (argv[1], std::ifstream::in);
 
-  // Z - basal
-  zrstd_b_vec << _ALAT, 0.0, 0.0, // 1/3[11-20]
-    0.0, sqrt(3.0) * _ALAT, 0.0, // [1-100]
-    0.0, 0.0, _CLAT; // [0001]
-
-  zrstd_b_motif.block<3,1>(0,0) << 0.0, 0.0, 0.0;   //A-plane
-  zrstd_b_motif.block<3,1>(0,1) << 0.5, 0.16666667, 0.5; //B-plane
-  zrstd_b_motif.block<3,1>(0,2) << 0.5, 0.5, 0.0;   //A-plane
-  zrstd_b_motif.block<3,1>(0,3) << 0.0, 0.66666667, 0.5; //B-plane
-
-  // Z - prism
-  zrstd_p_vec << _ALAT, 0.0, 0.0, // 1/3[11-20]
-    0.0, _CLAT, 0.0, // [1-100]
-    0.0, 0.0, sqrt(3.0) * _ALAT; // [0001]
-
-  zrstd_p_motif.block<3,1>(0,0) << 0.0, 0.0, 0.0;   //A-plane
-  zrstd_p_motif.block<3,1>(0,1) << 0.5, 0.5, 0.16666667; //B-plane
-  zrstd_p_motif.block<3,1>(0,2) << 0.5, 0.0, 0.5;   //A-plane
-  zrstd_p_motif.block<3,1>(0,3) << 0.0, 0.5, 0.66666667; //B-plane
-
-  /*
-    BCC dislocation unit cell
-    X = 0.5[111]
-    Y = [-1-12]
-    Z = [1-10]
-    We have 6 basis atoms in this unit cell i.e. it is not the primitive; however, it is orthogonal
-  */
-  double _ALAT_BCC = 2.855324;
-  Eigen::Matrix3f bcc111_vec;
-  Eigen::Matrix<float,3,Eigen::Dynamic> bcc111_motif(3,6);
-
-  bcc111_vec.block<3,1>(0,0) << sqrt(3.0)/2.0, 0., 0.; // 1/2[111]
-  bcc111_vec.block<3,1>(0,1) << 0.0, sqrt(6.0), 0.; // [-1-12]
-  bcc111_vec.block<3,1>(0,2) << 0.0, 0.0, sqrt(2.0); // [1-10]
-
-  bcc111_vec.block<3,1>(0,0) *= _ALAT_BCC;
-  bcc111_vec.block<3,1>(0,1) *= _ALAT_BCC;
-  bcc111_vec.block<3,1>(0,2) *= _ALAT_BCC;
-
-  bcc111_motif.block<3,1>(0,0) << 0.6666667, 0.333333, 0.0;
-  bcc111_motif.block<3,1>(0,1) << 0.3333333, 0.166667, 0.5;
-  bcc111_motif.block<3,1>(0,2) << 0., 0., 0.;
-  bcc111_motif.block<3,1>(0,3) << 0.666667, 0.8333333, 0.5;
-  bcc111_motif.block<3,1>(0,4) << 0.333333, 0.6666667, 0.0;
-  bcc111_motif.block<3,1>(0,5) <<  0.0, 0.5, 0.5;
-
-
-  // READ COMMAND-LINE ARGUMENTS
-  Eigen::Matrix<float, 3, 2> Nx; // box dimensions in unit cell
-  Eigen::Matrix<float, 3, 2> Nloop; // box dimensions in unit cell
-  enum mat_type {Zrb, Zrp, Fe} mat; //material: Zr or Fe
-  enum crs_type {P, E, S} crs;
-  enum sia_type {Y, N} sia;
-
-  for (int i = 0; i < 6; ++i){
-    Nx((int)i/2, i%2) = std::atof (argv[i+1]); // crystal parameters
-  }
-
-  printf ( "... using repeats: \n     X = [%1.0f %1.0f]\n     Y = [%1.0f %1.0f]\n     Z = [%1.0f %1.0f]\n",
-           Nx(0,0), Nx(0,1), Nx(1,0), Nx(1,1), Nx(2,0), Nx(2,1));
-
-  if (strcmp(argv[7],"Zrb")==0){mat = Zrb;}
-  if (strcmp(argv[7],"Zrp")==0){mat = Zrp;}
-  if (strcmp(argv[7],"Fe")==0){mat = Fe;}
-  std::cout << "mat = " << mat << std::endl;
-  if (strcmp(argv[8],"P")==0){crs = P;}
-  if (strcmp(argv[8],"E")==0){crs = E;}
-  if (strcmp(argv[8],"S")==0){crs = S;}
-  std::cout << "crs = " << crs << std::endl;
-
-  UnitCell cell;
-  switch (mat){
-  case Fe:{
-    cell.ucv = bcc111_vec;
-    cell.basis = bcc111_motif;
-    break;
-  }
-  case Zrb:{
-    cell.ucv = zrstd_b_vec;
-    cell.basis = zrstd_b_motif;
-    break;
-  }
-  case Zrp:{
-    cell.ucv = zrstd_p_vec;
-    cell.basis = zrstd_p_motif;
-    break;
-  }
-  }
-
-  Eigen::Vector3f box_spc;
-  cell.size(box_spc);
+  // load unit cell from file
+  haya::load_unit_cell_from_file(ifs, cell0);
+  Eigen::Vector3d box_spc;
+  cell0.size(box_spc);
   printf ( "... spacings (x,y,z): %1.5f, %1.5f, %1.5f\n",
            box_spc(0),
            box_spc(1),
            box_spc(2) );
+  ifs.close();
 
+  // edge and SIA boxes and atom containers
+  Eigen::Matrix<int, 3, 2> Nx, Nloop; // box dimensions in unit cell
   int Natoms;
-  AtomVector atoms;
-  BoxMatrix box;
   int tmp;
-  BoxMatrix boxMatMu, boxMatLambda;
-  AtomVector atomsMu, atomsLambda;
+  BoxMatrix boxMatMu, boxMatLambda, boxLoop;
+  AtomVector atomsMu, atomsLambda, atomsLoop;
+  Eigen::Matrix<double,3,3> hklLoop;
+  Eigen::Vector3d bLoop;
 
-  switch (crs){
-  case P:{
-    printf ( "... building perfect crystal\n");
-    Natoms = enki::create_perfect(cell, Nx, atoms, box);
-    printf( "+++ crystal built successfully, %i atoms\n", Natoms);
-    printf ( "    Box (Angstrom) [h1|h2|h2|origin]:\n");
-    std::cout << box << std::endl;
-    break;
-  }
+  // open file to process commands
+  ifs.open (argv[1], std::ifstream::in);
+  std::string command;
 
-  case E:{
-    printf ("... building edge-dislocated crystal\n");
-    Natoms = enki::create_edge_xz (cell, Nx, atomsMu, boxMatMu, atomsLambda, boxMatLambda );
-    printf ( "+++ created edge dislocation with b=x, n=z, %i atoms \n", Natoms);
-    printf ( "    Box-Mu (Angstrom) [h1|h2|h2|origin]: %i atoms\n", atomsMu.size());
-    std::cout << "    boxMat=\n" << boxMatMu << std::endl;
-    printf ( "    Box-Lambda (Angstrom) [h1|h2|h2|origin]: %i atoms\n", atomsLambda.size());
-    std::cout << "    boxLambda=\n" << boxMatLambda << std::endl;
-    join ( atomsMu, boxMatMu, atomsLambda, boxMatLambda, atoms, box );
-    break;
-  }
+  int ic;
+  int nline = 0;
+  while (std::getline(ifs, command)) {
+    nline++;
+    //std::cout << command << std::endl;
+    ic = haya::process_line(command, xtalTypes, params);
 
-  case S:{
-    printf ("... building scrw-dislocated crystal\n");
-    Natoms = enki::create_screw_xz (cell, Nx, atomsMu, boxMatMu, atomsLambda, boxMatLambda );
-    printf ( "+++ created screw dislocation with b=x, n=z, %i atoms \n", Natoms);
-    printf ( "    Box-Mu (Angstrom) [h1|h2|h2|origin]: %i atoms\n", atomsMu.size());
-    std::cout << "    boxMat=\n" << boxMatMu << std::endl;
-    printf ( "    Box-Lambda (Angstrom) [h1|h2|h2|origin]: %i atoms\n", atomsLambda.size());
-    std::cout << "    boxLambda=\n" << boxMatLambda << std::endl;
-    join ( atomsMu, boxMatMu, atomsLambda, boxMatLambda, atoms, box );
-    break;
-  }
-  }
-
-  if (argc > 9){ sia = Y;}
-  else{ sia = N;}
-
-  if (sia==Y){
-    for (int i = 0; i < 6; ++i){
-      Nloop((int)i/2, i%2) = std::atof (argv[i+9]); // loop parameters
+    if (ic == 0){
+        vec2mat( params, Nx);
+        if (params.size() < 6){
+          printf ("ERROR: in %s:%i need at least 6 integers to create perfect crystal\n",
+                  argv[1], nline);
+        }
+        printf ( "... building %ix%ix%i perfect crystal\n",
+                 Nx(0,1)-Nx(0,0), Nx(1,1)-Nx(1,0), Nx(2,1)-Nx(2,0));
+        Natoms = enki::create_perfect(cell0, Nx, atoms, box);
+        printf( "+++ crystal built successfully, %i atoms\n", Natoms);
+        printf ( "    Box (Angstrom) [h1|h2|h2|origin]:\n");
+        std::cout << box << std::endl;
+        continue;
     }
-
-    BoxMatrix loopBox;
-    AtomVector loopAtoms;
-    Eigen::Matrix<float,3,3> loopMiller;
-    Eigen::Matrix<float,3,3> loopTyvC1; //Tarantyev reaction C1 in Phil Mag vol. 90 1019–1033
-
-    loopMiller = Eigen::Matrix3f::Identity(); // 11-20 loop
-    loopTyvC1 << 2./3., 2./3., 2./3.,
-    -1./6., -1./6., 1./3.,
-    1./2., -1./2., 0.; 
-    //loopMiller << 0.5, 0.0, -1.5,
-    //  0.0, 1.0, 0.0,
-    //  0.5, 0.0, 0.5;
-    Eigen::Vector3f bLoop;
-    bLoop << 1.0, 0.0, 0.0; // loop space
-
-    printf ("... adding SIA loop with b=<x>\n");
-    tmp = enki::create_sia_loop ( cell, Nx,
-                                      loopMiller,
-                                      Nloop,
-                                      bLoop,
-                                      loopAtoms, loopBox);
-    printf ("+++ created SIA Miller loop with %i self-interstitial atoms\n", tmp);
-    printf ("    loop dimensions (box)\n");
-    std::cout << loopBox << std::endl;
-    atoms.insert(atoms.end(), loopAtoms.begin(), loopAtoms.end());
+    if (ic == 1){
+      vec2mat( params, Nx);
+      printf ("... building %ix%ix%i edge-dislocated crystal with b=y, n=z\n",
+              Nx(0,1)-Nx(0,0), Nx(1,1)-Nx(1,0), Nx(2,1)-Nx(2,0));
+      Natoms = enki::create_edge_xz (cell0, Nx, atomsMu, boxMatMu, atomsLambda, boxMatLambda );
+      printf ( "+++ created edge dislocation with b=x, n=z, %i atoms \n", Natoms);
+      printf ( "    Box-Mu (Angstrom) [h1|h2|h2|origin]: %i atoms\n", atomsMu.size());
+      std::cout << "    boxMat=\n" << boxMatMu << std::endl;
+      printf ( "    Box-Lambda (Angstrom) [h1|h2|h2|origin]: %i atoms\n", atomsLambda.size());
+      std::cout << "    boxLambda=\n" << boxMatLambda << std::endl;
+      join ( atomsMu, boxMatMu, atomsLambda, boxMatLambda, atoms, box );
+      continue;
+    }
+    if (ic == 2){
+      vec2mat( params, Nx);
+      printf ("... building %ix%ix%i scrw-dislocated crystal with b=x, n=z\n",
+              Nx(0,1)-Nx(0,0), Nx(1,1)-Nx(1,0), Nx(2,1)-Nx(2,0));
+      Natoms = enki::create_screw_xz (cell0, Nx, atomsMu, boxMatMu, atomsLambda, boxMatLambda );
+      printf ( "+++ created screw dislocation with b=x, n=z, %i atoms \n", Natoms);
+      printf ( "    Box-Mu (Angstrom) [h1|h2|h2|origin]: %i atoms\n", atomsMu.size());
+      std::cout << "    boxMat=\n" << boxMatMu << std::endl;
+      printf ( "    Box-Lambda (Angstrom) [h1|h2|h2|origin]: %i atoms\n", atomsLambda.size());
+      std::cout << "    boxLambda=\n" << boxMatLambda << std::endl;
+      join ( atomsMu, boxMatMu, atomsLambda, boxMatLambda, atoms, box );
+      continue;
+    }
+    if (ic == 3){
+      vec2mat(params, Nx);
+      printf ("... adding SIA loop with b=<x>\n");
+      haya::get_miller_sia( command, hklLoop);
+      printf ("   Miller indices of the loop = \n");
+      std::cout << hklLoop << std::endl;
+      Eigen::Matrix<double,3,2> looptiles;
+      looptiles.block<3,1>(0,0) = hklLoop.inverse() * Nx.block<3, 1>(0, 0).cast<double>();
+      looptiles.block<3,1>(0,1) = looptiles.block<3,1>(0,0) + Nx.block<3,1>(0,1).cast<double>();
+      std::cout << "*********DEBUG: looptiles = *************\n";
+      std::cout << looptiles;
+      std::cout << "\n*****************************************\n";
+      Nloop = looptiles.cast<int>();
+      bLoop << 1.0, 0.0, 0.0; // let burgers be equal to loop a1
+      tmp = enki::create_sia_loop ( cell0,
+                                    hklLoop,
+                                    Nloop,
+                                    bLoop,
+                                    atomsLoop, boxLoop);
+      printf ("+++ created SIA Miller loop with %i self-interstitial atoms\n", tmp);
+      printf ("    loop dimensions (box)\n");
+      std::cout << boxLoop << std::endl;;
+      atoms.insert(atoms.end(), atomsLoop.begin(), atomsLoop.end());
+      continue;
+    }
 
   }
 
@@ -236,7 +203,6 @@ int main(int argc, char** argv){
   enki::wrap_atoms_box(atoms, box);
   tmp = enki::write_lammps_data_file ( fp, atoms, box );
   printf ( "... done writing %i atoms to atoms.data\n", tmp );
-
 
   return 0;
 

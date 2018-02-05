@@ -1,6 +1,0 @@
-#ifndef ATOM_H
-#define ATOM_H
-
-#include "Eigen/Dense"
-
-class Atom

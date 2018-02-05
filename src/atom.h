@@ -12,11 +12,15 @@ class Atom{
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   Atom();
-  Atom( int, const Vector3f& vscaled, const Vector3f& vreal);
+  Atom( int,
+        int,
+        const Vector3d& vscaled,
+        const Vector3d& vreal);
 
   int _id;
-  Vector3f ucc;
-  Vector3f coords;
+  Vector3d ucc;
+  Vector3d coords;
+  int _type;
 
 };
 

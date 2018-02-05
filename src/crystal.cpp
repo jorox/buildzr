@@ -13,7 +13,7 @@ Crystal::Crystal(){
 }
 
 Crystal::Crystal(int cid,
-                 const Eigen::Matrix<float,3,2>& ctiles,
+                 const Eigen::Matrix<int,3,2>& ctiles,
                  UnitCell* cuc){
   this->_id = cid;
   this->uc = cuc;
