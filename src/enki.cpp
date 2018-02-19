@@ -179,10 +179,10 @@ int enki::create_perfect( const UnitCell& cell,
 
 int enki::create_edge_xz(const UnitCell& cell,
                          const Eigen::Matrix<int,3,2>& Ntiles,
-                         std::vector<Atom>& atoms1,
-                         Eigen::Matrix<double,3,4>& box1,
-                         std::vector<Atom>& atoms2,
-                         Eigen::Matrix<double,3,4>& box2){
+                         std::vector<Atom>& atomsMu,
+                         Eigen::Matrix<double,3,4>& boxMu,
+                         std::vector<Atom>& atomsLambda,
+                         Eigen::Matrix<double,3,4>& boxLambda){
 
   //
   int Nx = Ntiles(0,1) - Ntiles(0,0);
@@ -215,26 +215,28 @@ int enki::create_edge_xz(const UnitCell& cell,
   Crystal lambda(1, Nlambda, &ucLambda);
 
   // Atoms and boxes
-  int N1 = mu.build(atoms1);
-  int N2 = lambda.build(atoms2);
+  int N1 = mu.build(atomsMu);
+  int N2 = lambda.build(atomsLambda);
 
-  enki::get_box_vectors(ucMu, Nmu, box1);
-  enki::get_box_vectors(ucLambda, Nlambda, box2);
+  enki::get_box_vectors(ucMu, Nmu, boxMu);
+  enki::get_box_vectors(ucLambda, Nlambda, boxLambda);
 
-  //std::cout << "DEBUG: box1 = " << std::endl << box1 << std::endl;
-  //std::cout << "DEBUG: box2 = " << std::endl << box2 << std::endl;
+  Eigen::Vector3d originShift = boxMu.block<3, 1>(0, 3) - boxLambda.block<3,1>(0, 3); // Ntiles(0,0)==0? 0:0.5b
+
+  //std::cout << "DEBUG: boxMu = " << std::endl << boxMu << std::endl;
+  //std::cout << "DEBUG: boxLambda = " << std::endl << boxLambda << std::endl;
 
   // Shift atoms and boxes to conincide (needed for negative tiles)
-  box2(0, 3) -= 0.5*b;
-  for (int i=0; i < atoms2.size(); ++i){ atoms2[i].coords(0) -= 0.5*b; }
+  boxLambda(0,3) += originShift(0);
+  for (int i=0; i < atomsLambda.size(); ++i){ atomsLambda[i].coords(0) += originShift(0); }
 
   std::FILE * fpMu;
   std::FILE * fpLm;
   fpMu = fopen ("atomsMu.data", "w");
   fpLm = fopen ("atomsLm.data", "w");
 
-  enki::write_lammps_data_file(fpMu, atoms1, box1);
-  enki::write_lammps_data_file(fpLm, atoms2, box2);
+  enki::write_lammps_data_file(fpMu, atomsMu, boxMu);
+  enki::write_lammps_data_file(fpLm, atomsLambda, boxLambda);
 
   return N1+N2;
 
@@ -242,10 +244,10 @@ int enki::create_edge_xz(const UnitCell& cell,
 
 int enki::create_screw_xz( const UnitCell& cell,
                            const Eigen::Matrix<int,3,2>& Nx,
-                           std::vector<Atom>& atoms1,
-                           Eigen::Matrix<double,3,4>& box1,
-                           std::vector<Atom>& atoms2,
-                           Eigen::Matrix<double,3,4>& box2){
+                           std::vector<Atom>& atomsMu,
+                           Eigen::Matrix<double,3,4>& boxMu,
+                           std::vector<Atom>& atomsLambda,
+                           Eigen::Matrix<double,3,4>& boxLambda){
 
   double b = cell.ucv.block<3,1>(0,0).norm();
   double dy = cell.ucv.block<3,1>(0,1).norm();
@@ -277,21 +279,26 @@ int enki::create_screw_xz( const UnitCell& cell,
   Crystal lambda (0, Nlambda, &lambdaUC);
   Crystal mu (1, Nmu, &muUC);
 
-  int N1 = mu.build(atoms1);
-  int N2 = lambda.build(atoms2);
+  int N1 = mu.build(atomsMu);
+  int N2 = lambda.build(atomsLambda);
 
-  enki::get_box_vectors(muUC, Nmu, box1);
-  enki::get_box_vectors(lambdaUC, Nlambda, box2);
+  enki::get_box_vectors(muUC, Nmu, boxMu);
+  enki::get_box_vectors(lambdaUC, Nlambda, boxLambda);
+
+  Eigen::Vector3d originShift = boxMu.block<3, 1>(0, 3) - boxLambda.block<3,1>(0, 3); // Ntiles(0,0)==0? 0:0.5b
+  // Shift atoms and boxes to conincide (needed for negative tiles)
+  boxLambda(0,3) += originShift(0);
+  for (int i=0; i < atomsLambda.size(); ++i){ atomsLambda[i].coords(0) += originShift(0); }
 
   std::FILE * fpMu;
   std::FILE * fpLm;
   fpMu = fopen ("atomsMu.data", "w");
   fpLm = fopen ("atomsLm.data", "w");
 
-  enki::write_lammps_data_file(fpMu, atoms1, box1);
-  enki::write_lammps_data_file(fpLm, atoms2, box2);
+  enki::write_lammps_data_file(fpMu, atomsMu, boxMu);
+  enki::write_lammps_data_file(fpLm, atomsLambda, boxLambda);
 
-  box2(0,1) = box1(0,1); // create the same shear so that joining the boxes by averaging will not yield zero
+  boxLambda(0,1) = boxMu(0,1); // create the same shear so that joining the boxes by averaging will not yield zero
 
   return N1+N2;
 
