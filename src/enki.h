@@ -19,10 +19,6 @@ namespace enki{
   int ratio_of_atoms( const UnitCell& old,
                       const UnitCell& shiny);
 
-  void transform (const UnitCell& old,
-                  Eigen::Matrix3d& miller,
-                  UnitCell& shiny);
-
   void get_box_vectors (const UnitCell& cell,
                         const Eigen::Matrix<int,3,2>& tiles,
                         Eigen::Matrix<double,3,4>& boxVectors);

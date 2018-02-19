@@ -33,5 +33,8 @@ namespace haya{
 
   void get_miller_sia( const std::string command,
                        Eigen::Matrix3d& hkls);
+
+  void get_miller_transform( const std::string command,
+                             Eigen::Matrix3d& hkls); // need to merge with get_miller_sia
 };
 #endif

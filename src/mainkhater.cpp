@@ -195,7 +195,17 @@ int main(int argc, char** argv)
       atoms.insert(atoms.end(), atomsLoop.begin(), atomsLoop.end());
       continue;
     }
-
+    if (ic ==99){
+      printf("... changing unit cell\n");
+      Eigen::Matrix3d hklNew;
+      haya::get_miller_transform(command, hklNew);
+      printf("    Miller indices of the new cell relative to the old:\n");
+      std::cout << hklNew << std::endl;
+      UnitCell dummy;
+      enki::transform(cell0, hklNew, dummy);
+      printf("   New unit cell:");
+      dummy.print_me();
+    }
   }
 
   std::FILE * fp;

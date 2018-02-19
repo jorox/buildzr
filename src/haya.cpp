@@ -61,17 +61,24 @@ int haya::process_line(const std::string str,
   if (str.empty()){ return -1;} // empty string
   std::vector<std::string> words;
   haya::split5(str, words);
-  params.clear();
 
-  if ( words[0] != "build" ){ return -1;} //not an action line
-  if ( words.size() < 8 ) {
+  if ( words[0] != "build" and words[0] != "transform"){ return -1;} //not an action line
+  if ( words[0] == "build" and words.size() < 8 ) {
     std::cout << "ERROR: Need at least 6 integers for build command\n";
     std::cout << str;
   }
+  if ( words[0] == "transform" and words.size() < 4) {
+    printf ("ERROR: Need at least 3 miller indices for a transform command\n");
+    printf ( str.c_str() );
+  }
+  else{
+    if (words[0] == "transform") {return 99;}
+  }
   // look for the build-type
+  params.clear();
   for (int i = 0; i < buildTypes.size(); ++i){
     if (  words[1] == buildTypes[i]){
-      for (int j = 2; j < 8; ++j){params.push_back(std::stoi(words[j]));}
+      for (int j = 2; j < 8; ++j){params.push_back(std::stoi(words[j]));} //this wont work for a transform command
       return i;
     }
   }
@@ -96,6 +103,19 @@ void haya::get_miller_sia( const std::string command,
   }
 }
 
+void haya::get_miller_transform( const std::string command,
+                                 Eigen::Matrix3d& hkls){
+  std::vector<std::string> words;
+  haya::split5(command, words);
+  if (words.size() < 4){
+    hkls << Eigen::Matrix3d::Identity();
+  }
+  else{
+    for (int i=1; i < 4; ++i){
+      hkls.block<3,1>(0,i-1) << str2miller ( words[i] );
+    }
+  }
+}
 
 Eigen::Vector3d haya::str2miller(const std::string str){
   std::string millerStr (str);
